@@ -1,0 +1,6 @@
+poc portal commands
+CHANGELOG.md
+.env
+pb_migrations/*
+pb_data/*
+pocketbase

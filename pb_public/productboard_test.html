@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ProductBoard Integration Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .test-section {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover {
+      background: #545b62;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    input, textarea {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 100%;
+      max-width: 500px;
+      margin: 5px 0;
+    }
+    textarea {
+      min-height: 100px;
+      font-family: inherit;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px 0;
+      font-weight: 500;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .feature-card {
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: white;
+    }
+    .feature-card h4 {
+      margin: 0 0 10px 0;
+      color: #007bff;
+    }
+    .feature-card .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      background: #e9ecef;
+      margin: 5px 5px 5px 0;
+    }
+    .all-tests {
+      background: #28a745;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .all-tests:hover {
+      background: #218838;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔗 ProductBoard Integration Test</h1>
+  <p>Test all ProductBoard API endpoints and verify integration is working correctly.</p>
+
+  <button class="all-tests" onclick="runAllTests()">▶ Run All Tests</button>
+  
+  <div class="test-section">
+    <h2>1. Health Check</h2>
+    <p>Verify the ProductBoard service is available</p>
+    <button onclick="testHealth()">Test Health</button>
+    <div id="result1" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Connection Test</h2>
+    <p>Test ProductBoard API connection and authentication</p>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="result2" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Search Features</h2>
+    <label>Search Query:</label>
+    <input type="text" id="searchQuery" placeholder="e.g., sample, automation" value="sample">
+    <label>Product Filter (optional):</label>
+    <input type="text" id="productFilter" placeholder="e.g., TLS Management">
+    <button onclick="testSearch()">Search</button>
+    <button class="secondary" onclick="testSearchEmpty()">Search All</button>
+    <div id="result3" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Get Products</h2>
+    <p>List all products in ProductBoard</p>
+    <button onclick="testProducts()">Get Products</button>
+    <div id="result4" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>5. Recent Features</h2>
+    <label>Limit:</label>
+    <input type="number" id="recentLimit" value="5" min="1" max="20">
+    <button onclick="testRecent()">Get Recent</button>
+    <div id="result5" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>6. Get Feature Details</h2>
+    <label>Feature ID:</label>
+    <input type="text" id="featureId" placeholder="Paste feature ID from search results">
+    <button onclick="testFeatureDetails()">Get Details</button>
+    <div id="result6" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>7. Create Insight</h2>
+    <label>Feature ID:</label>
+    <input type="text" id="insightFeatureId" placeholder="Feature ID to link insight to">
+    <label>Insight Text:</label>
+    <textarea id="insightText" placeholder="Describe the customer need or feedback...">Customer requested this feature during POC demo. High priority for their Q1 deployment.</textarea>
+    <label>Importance:</label>
+    <select id="importance" style="padding: 8px; width: 200px;">
+      <option value="critical">🔴 Critical</option>
+      <option value="important">🟡 Important</option>
+      <option value="nice_to_have" selected>🔵 Nice to have</option>
+      <option value="not_important">⚪ Not important</option>
+      <option value="unknown">❓ Unknown</option>
+    </select>
+    <label>Customer Name:</label>
+    <input type="text" id="customerName" value="Test Customer">
+    <label>POC/Use Case Name:</label>
+    <input type="text" id="pocName" value="Test POC">
+    <button onclick="testCreateInsight()">Create Insight</button>
+    <div id="result7" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    let testResults = {
+      health: null,
+      connection: null,
+      search: null,
+      products: null,
+      recent: null,
+      feature: null,
+      insight: null
+    };
+
+    async function runAllTests() {
+      console.log('[Test Suite] Running all tests...');
+      await testHealth();
+      await new Promise(r => setTimeout(r, 500));
+      await testConnection();
+      await new Promise(r => setTimeout(r, 500));
+      await testProducts();
+      await new Promise(r => setTimeout(r, 500));
+      await testRecent();
+      await new Promise(r => setTimeout(r, 500));
+      document.getElementById('searchQuery').value = 'sample';
+      await testSearch();
+      
+      // Show summary
+      const passed = Object.values(testResults).filter(r => r === true).length;
+      const total = Object.keys(testResults).length - 2; // Exclude feature and insight
+      alert(`✅ Test Suite Complete!\n\nPassed: ${passed}/${total} tests\n\nCheck individual test sections for details.`);
+    }
+
+    async function testHealth() {
+      const result = document.getElementById('result1');
+      result.style.display = 'block';
+      result.innerHTML = 'Testing...';
+      result.className = 'result';
+      
+      try {
+        const response = await fetch('/api/productboard/health');
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'ok') {
+          result.className = 'result success';
+          result.innerHTML = `✅ HEALTH CHECK PASSED
+
+Status: ${data.status}
+Version: ${data.version}
+Service: ${data.service}
+
+Response:
+${JSON.stringify(data, null, 2)}`;
+          testResults.health = true;
+        } else {
+          throw new Error('Unexpected response');
+        }
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ HEALTH CHECK FAILED
+
+${error.message}`;
+        testResults.health = false;
+      }
+    }
+
+    async function testConnection() {
+      const result = document.getElementById('result2');
+      result.style.display = 'block';
+      result.innerHTML = 'Testing ProductBoard API connection...';
+      result.className = 'result';
+      
+      try {
+        const response = await fetch('/api/productboard/test');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ CONNECTION TEST PASSED
+
+${data.message}
+Total Features: ${data.totalFeatures}
+Sample Features:
+${data.samples.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}
+
+Full Response:
+${JSON.stringify(data, null, 2)}`;
+        testResults.connection = true;
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ CONNECTION TEST FAILED
+
+${error.message}`;
+        testResults.connection = false;
+      }
+    }
+
+    async function testSearch() {
+      const query = document.getElementById('searchQuery').value;
+      const product = document.getElementById('productFilter').value;
+      const result = document.getElementById('result3');
+      
+      result.style.display = 'block';
+      result.innerHTML = 'Searching...';
+      result.className = 'result';
+      
+      if (!query) {
+        result.className = 'result error';
+        result.innerHTML = '❌ Please enter a search query';
+        return;
+      }
+      
+      try {
+        let url = `/api/productboard/search?query=${encodeURIComponent(query)}`;
+        if (product) {
+          url += `&product=${encodeURIComponent(product)}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        const features = data.data || [];
+        
+        if (features.length === 0) {
+          result.className = 'result info';
+          result.innerHTML = `ℹ️ NO RESULTS
+
+No features found for query: "${query}"${product ? ` in product "${product}"` : ''}
+
+Try:
+- Different search terms
+- Removing product filter
+- Searching for "sample"`;
+          testResults.search = true; // Still passes, just no results
+          return;
+        }
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ SEARCH SUCCESSFUL
+
+Found ${features.length} feature(s)
+
+Results:
+${features.map((f, i) => `
+${i + 1}. ${f.title}
+   ID: ${f.id}
+   Status: ${f.status}
+   Product: ${f.product || '(none)'}
+   Owner: ${f.owner}
+   URL: ${f.url}
+`).join('\n')}
+
+Tip: Copy a feature ID above to test "Get Feature Details"`;
+        testResults.search = true;
+        
+        // Auto-fill first feature ID for testing
+        if (features.length > 0) {
+          document.getElementById('featureId').value = features[0].id;
+          document.getElementById('insightFeatureId').value = features[0].id;
+        }
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ SEARCH FAILED
+
+${error.message}`;
+        testResults.search = false;
+      }
+    }
+
+    async function testSearchEmpty() {
+      document.getElementById('searchQuery').value = '';
+      document.getElementById('productFilter').value = '';
+      await testSearch();
+    }
+
+    async function testProducts() {
+      const result = document.getElementById('result4');
+      result.style.display = 'block';
+      result.innerHTML = 'Loading products...';
+      result.className = 'result';
+      
+      try {
+        const response = await fetch('/api/productboard/products');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        const products = data.data || [];
+        
+        if (products.length === 0) {
+          result.className = 'result info';
+          result.innerHTML = `ℹ️ NO PRODUCTS
+
+No products found in ProductBoard.
+This could mean:
+- Features don't have products assigned
+- ProductBoard is empty
+- API returned no data`;
+          testResults.products = true;
+          return;
+        }
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ PRODUCTS LOADED
+
+Found ${products.length} product(s):
+
+${products.map((p, i) => `${i + 1}. ${p}`).join('\n')}`;
+        testResults.products = true;
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ PRODUCTS FAILED
+
+${error.message}`;
+        testResults.products = false;
+      }
+    }
+
+    async function testRecent() {
+      const limit = parseInt(document.getElementById('recentLimit').value);
+      const result = document.getElementById('result5');
+      
+      result.style.display = 'block';
+      result.innerHTML = 'Loading recent features...';
+      result.className = 'result';
+      
+      try {
+        const response = await fetch(`/api/productboard/recent?limit=${limit}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        const features = data.data || [];
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ RECENT FEATURES LOADED
+
+Found ${features.length} recent feature(s):
+
+${features.map((f, i) => `
+${i + 1}. ${f.title}
+   Status: ${f.status}
+   Product: ${f.product || '(none)'}
+   Updated: ${new Date(f.updatedAt).toLocaleString()}
+`).join('\n')}`;
+        testResults.recent = true;
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ RECENT FEATURES FAILED
+
+${error.message}`;
+        testResults.recent = false;
+      }
+    }
+
+    async function testFeatureDetails() {
+      const featureId = document.getElementById('featureId').value;
+      const result = document.getElementById('result6');
+      
+      result.style.display = 'block';
+      result.innerHTML = 'Loading feature details...';
+      result.className = 'result';
+      
+      if (!featureId) {
+        result.className = 'result error';
+        result.innerHTML = '❌ Please enter a feature ID';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/productboard/features/${featureId}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ FEATURE DETAILS LOADED
+
+Title: ${data.title}
+Status: ${data.status}
+Type: ${data.type || 'N/A'}
+Product: ${data.product || '(none)'}
+Owner: ${data.owner}
+Release: ${data.release || '(none)'}
+Release Date: ${data.releaseDate || '(none)'}
+Updated: ${new Date(data.updatedAt).toLocaleString()}
+
+Description:
+${data.description || '(no description)'}
+
+URL: ${data.url}
+
+Full Response:
+${JSON.stringify(data, null, 2)}`;
+        testResults.feature = true;
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ GET FEATURE DETAILS FAILED
+
+${error.message}`;
+        testResults.feature = false;
+      }
+    }
+
+    async function testCreateInsight() {
+      const featureId = document.getElementById('insightFeatureId').value;
+      const insightText = document.getElementById('insightText').value;
+      const importance = document.getElementById('importance').value;
+      const customerName = document.getElementById('customerName').value;
+      const pocName = document.getElementById('pocName').value;
+      const result = document.getElementById('result7');
+      
+      result.style.display = 'block';
+      result.innerHTML = 'Creating insight...';
+      result.className = 'result';
+      
+      if (!insightText.trim()) {
+        result.className = 'result error';
+        result.innerHTML = '❌ Please enter insight text';
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/productboard/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            featureId,
+            insightText,
+            importance,
+            customerName,
+            pocName
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        }
+        
+        result.className = 'result success';
+        result.innerHTML = `✅ INSIGHT CREATED SUCCESSFULLY
+
+${data.message}
+Insight ID: ${data.insightId}
+${featureId ? `Linked to Feature: ${featureId}` : 'No feature link (no feature ID provided)'}
+
+You can view this insight in ProductBoard!
+
+Response:
+${JSON.stringify(data, null, 2)}`;
+        testResults.insight = true;
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `❌ CREATE INSIGHT FAILED
+
+${error.message}`;
+        testResults.insight = false;
+      }
+    }
+  </script>
+</body>
+</html>

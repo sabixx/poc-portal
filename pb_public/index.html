@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>POC Portal – PocketBase</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- PocketBase JS SDK (global) -->
+  <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>POC Portal</h1>
+      <div class="hint" id="user-info">Not signed in</div>
+    </div>
+    <div class="header-actions">
+      <button id="theme-toggle" type="button">🌓</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Login -->
+    <section id="login-section">
+      <h2>Login</h2>
+      <form id="login-form">
+        <label>
+          E-mail:
+          <input type="email" id="login-email" required>
+        </label>
+        <label>
+          Password:
+          <input type="password" id="login-password" required>
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+      <div id="login-error" class="error"></div>
+    </section>
+
+    <!-- Main overview -->
+    <section id="portal-section" class="hidden">
+      <!-- summary metrics -->
+      <section class="summary-section">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Active POCs</div>
+            <div id="summary-active-pocs" class="summary-value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">POCs at risk</div>
+            <div id="summary-at-risk" class="summary-value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">POCs completed last 30 days</div>
+            <div id="summary-completed-30d" class="summary-value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Open use cases (active POCs)</div>
+            <div id="summary-open-ucs" class="summary-value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Completed use cases (active POCs)</div>
+            <div id="summary-completed-ucs" class="summary-value">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filter -->
+      <section class="filter-section">
+        <h2>Filter</h2>
+        <div class="filter-row">
+          <strong>SE selection:</strong>
+          <div id="se-filters" class="filter-se-list"></div>
+          <button id="se-select-all" type="button">All</button>
+          <button id="se-select-none" type="button">None</button>
+          <label class="filter-asof">
+            As-of date:
+            <input type="date" id="as-of-date">
+          </label>
+          <button id="as-of-apply" type="button">Apply</button>
+        </div>
+        <div class="hint" id="role-hint"></div>
+      </section>
+
+      <!-- POC overview -->
+      <section>
+        <h2>Active POCs</h2>
+        <div id="active-pocs" class="poc-grid"></div>
+      </section>
+
+      <section>
+        <h2>
+          In-review / Completed POCs
+          <label style="margin-left: 1rem; font-size: 0.85rem;">
+            <input type="checkbox" id="toggle-old-pocs">
+            Show completed POCs
+          </label>
+        </h2>
+        <div id="closed-pocs" class="poc-grid"></div>
+      </section>
+
+      <!-- Stats -->
+      <section class="stats-section">
+        <h2>Use-case stats</h2>
+        <div class="stats-grid">
+          <div class="stats-card">
+            <h3>Top rated Use Cases</h3>
+            <ul id="stats-top-rated"></ul>
+          </div>
+          <div class="stats-card">
+            <h3>Low rated Use Cases</h3>
+            <ul id="stats-low-rated"></ul>
+          </div>
+          <div class="stats-card">
+            <h3>Most completed</h3>
+            <ul id="stats-most-completed"></ul>
+          </div>
+          <div class="stats-card">
+            <h3>Never completed</h3>
+            <ul id="stats-never-completed"></ul>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- POC detail view -->
+    <section id="poc-detail-section" class="hidden detail-section">
+      <button id="poc-detail-back" class="back-btn">← Back to overview</button>
+      <h2 id="poc-detail-title">POC detail</h2>
+      <div id="poc-detail-meta" class="poc-detail-meta"></div>
+      <div class="detail-table-wrapper">
+        <table id="poc-detail-table" class="usecase-table">
+          <thead>
+            <tr>
+              <th>Use case</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Rating</th>
+              <th>Completed at</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Use-case detail view -->
+    <section id="usecase-detail-section" class="hidden detail-section">
+      <button id="usecase-detail-back" class="back-btn">← Back to overview</button>
+      <h2 id="usecase-detail-title">Use case detail</h2>
+      <div class="detail-table-wrapper">
+        <table id="usecase-detail-table" class="usecase-table">
+          <thead>
+            <tr>
+              <th>POC</th>
+              <th>SE</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Rating</th>
+              <th>Completed at</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modules -->
+  <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
