@@ -16,6 +16,8 @@ A status overview of all POCs
       - find a better visualizatzion as deal breaker..
       - botton corners of active use cases is round, bottom corner of In-Revew is straight corners... 
 
+- long comments are cut off, need some option to show the whole comment..
+
 - show feature request button sometimes disapers.. need to refresh the browser
 
 - filtering isn't working... needs to be done anyhow..
@@ -34,6 +36,7 @@ A status overview of all POCs
 
 # TODO
 
+- remove hard coded key for testing from the public api..
 
 - be able to click on use cases and be abele to check how this usecase was rated / feedback across all POCs... *everyone can view.... 
 
@@ -50,11 +53,13 @@ A status overview of all POCs
 - move the insight button to the right corner of the frame, does not look good..
 
 - update the dashboard..
-    Active    in Recview    Closed
+    [Active POCs]    [in Recview]    [Closed (last 3 months)]
   
-    at risk   preparation at risk; use cases open use cases (active POCs); completed use cases (active POCs)
+    [at risk]   [preparation at risk;] [open use cases (active POCs)] [completed use cases (active POCs)]
 
-    whos 
+   [New feedback] [Delivery Risk (PB TIMELINE does not fit customer timeline / including closed POCs)]
+
+
 
 - when linking a pb item, it does not update the 
 

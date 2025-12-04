@@ -3,4 +3,5 @@ CHANGELOG.md
 .env
 pb_migrations/*
 pb_data/*
+_backup/
 pocketbase
