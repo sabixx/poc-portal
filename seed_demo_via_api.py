@@ -34,7 +34,7 @@ from typing import List, Dict, Any
 
 import requests
 
-API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:8000")
+API_BASE = os.environ.get("PB_API_URL", "http://127.0.0.1:8000")
 API_KEY = os.environ.get("API_SHARED_SECRET")  # X-Api-Key
 
 SESSION = requests.Session()
@@ -211,14 +211,15 @@ SES = [
     "andrea.meyer@cyberark.com",
     "lisa.mueller@cyberark.com",
     "thomas.becker@cyberark.com",
-    "maria.rodriguez@cyberark.com",
-    "daniel.hoffmann@cyberark.com",
-    "sven.fischer@cyberark.com",
-    "sarah.weber@cyberark.com",
-    "felix.wagner@cyberark.com",
-    "nina.schneider@cyberark.com",
-    "robert.huber@cyberark.com",
 ]
+
+    # "maria.rodriguez@cyberark.com",
+    # "daniel.hoffmann@cyberark.com",
+    # "sven.fischer@cyberark.com",
+    # "sarah.weber@cyberark.com",
+    # "felix.wagner@cyberark.com",
+    # "nina.schneider@cyberark.com",
+    # "robert.huber@cyberark.com",
 
 CUSTOMERS = [
     ("Sample Company A", "Banking"),
@@ -475,7 +476,7 @@ def seed_demo_data():
 
     for se_email in SES:
         for scenario in SCENARIOS:
-            for _ in range(2):  # 2 POCs per scenario per SE
+            for _ in range(1):  # 1 POCs per scenario per SE
                 customer_name, industry = random.choice(CUSTOMERS)
                 partner = random.choice(PARTNERS)
 

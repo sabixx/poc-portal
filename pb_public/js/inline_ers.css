@@ -1,0 +1,374 @@
+/* ================================================================
+   INLINE FEATURE REQUESTS IN USE CASE TABLE
+   Add this CSS to your main stylesheet
+   ================================================================ */
+
+/* ER Toggle */
+.poc-uc-er-toggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 8px 8px 0 0;
+}
+
+.poc-uc-er-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #495057;
+  cursor: pointer;
+  user-select: none;
+}
+
+.poc-uc-er-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #1976d2;
+}
+
+/* ER count badge on Use Case row */
+.uc-er-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin-left: 8px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+/* ER sub-row styling */
+.poc-uc-er-row {
+  background: #f8f9fa;
+}
+
+.poc-uc-er-row--deal {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+}
+
+.poc-uc-er-row--poc-level {
+  background: #f3e5f5;
+}
+
+/* POC-Level ERs Section (above table) */
+.poc-uc-poc-ers-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+  border-radius: 8px;
+  border: 1px solid #ce93d8;
+}
+
+.poc-uc-poc-ers-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #6a1b9a;
+  margin-bottom: 12px;
+}
+
+.poc-uc-poc-ers-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #9c27b0;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 11px;
+}
+
+.poc-uc-poc-ers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* POC-Level ER Card */
+.poc-uc-er-card {
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #9c27b0;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.poc-uc-er-card--deal {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+  border-left-color: #ff9800;
+}
+
+.poc-uc-er-cell {
+  padding: 0 !important;
+}
+
+.poc-uc-er-content {
+  margin: 8px 16px 8px 48px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border-left: 3px solid #64b5f6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.poc-uc-er-row--deal .poc-uc-er-content {
+  border-left-color: #ff9800;
+}
+
+.poc-uc-er-row--poc-level .poc-uc-er-content {
+  border-left-color: #9c27b0;
+  margin-left: 16px;
+}
+
+/* ER Header */
+.poc-uc-er-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.poc-uc-er-deal-badge {
+  font-size: 14px;
+}
+
+.poc-uc-er-title-link {
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.poc-uc-er-title-link:hover {
+  text-decoration: underline;
+}
+
+.poc-uc-er-title-text {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+}
+
+.poc-uc-er-status {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.poc-uc-er-status--new-idea { background: #e3f2fd; color: #1565c0; }
+.poc-uc-er-status--under-consideration { background: #fff3e0; color: #e65100; }
+.poc-uc-er-status--planned { background: #e8f5e9; color: #2e7d32; }
+.poc-uc-er-status--in-progress { background: #e1f5fe; color: #0277bd; }
+.poc-uc-er-status--in-development { background: #e1f5fe; color: #0277bd; }
+.poc-uc-er-status--released { background: #c8e6c9; color: #1b5e20; }
+.poc-uc-er-status--unknown { background: #f5f5f5; color: #757575; }
+
+/* Create Insight Button */
+.poc-uc-er-insight-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #f57c00;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.poc-uc-er-insight-btn:hover {
+  background: linear-gradient(135deg, #ffecb3 0%, #ffe082 100%);
+  border-color: #ffb300;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* ER Body */
+.poc-uc-er-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.poc-uc-er-comment {
+  width: 90%;
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 40px;
+  max-height: 120px;
+}
+
+.poc-uc-er-comment:focus {
+  outline: none;
+  border-color: #64b5f6;
+  box-shadow: 0 0 0 2px #e3f2fd;
+}
+
+/* ER Fields Row */
+.poc-uc-er-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.poc-uc-er-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.poc-uc-er-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #757575;
+  text-transform: uppercase;
+}
+
+.poc-uc-er-field select {
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+}
+
+.poc-uc-er-field select:focus {
+  outline: none;
+  border-color: #64b5f6;
+}
+
+.poc-uc-er-needs-btn {
+  padding: 6px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poc-uc-er-needs-btn:hover {
+  background: #f5f5f5;
+  border-color: #bdbdbd;
+}
+
+.poc-uc-er-pb-tf {
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #616161;
+}
+
+.poc-uc-er-field--deal label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: none;
+  color: #333;
+}
+
+.poc-uc-er-field--deal input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* POC-Level ERs Header */
+.poc-uc-poc-ers-header td {
+  padding: 16px 12px 8px !important;
+  background: #fafafa;
+  border-top: 2px solid #e0e0e0;
+}
+
+.poc-uc-poc-ers-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #616161;
+}
+
+.poc-uc-poc-ers-count {
+  background: #9c27b0;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+/* Toggle Button with ERs */
+.poc-toggle-details-btn--has-ers {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+  border: 1px solid #64b5f6 !important;
+  color: #1565c0 !important;
+  font-weight: 600 !important;
+}
+
+.poc-toggle-details-btn--has-ers:hover {
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%) !important;
+  border-color: #42a5f5 !important;
+}
+
+/* Dark Mode Support */
+:root[data-theme="dark"] .uc-er-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+:root[data-theme="dark"] .poc-uc-er-row {
+  background: var(--bg-elevated);
+}
+
+:root[data-theme="dark"] .poc-uc-er-content {
+  background: var(--bg-card);
+  border-color: var(--accent);
+}
+
+:root[data-theme="dark"] .poc-uc-er-title-text,
+:root[data-theme="dark"] .poc-uc-er-field--deal label {
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .poc-uc-er-comment,
+:root[data-theme="dark"] .poc-uc-er-field select,
+:root[data-theme="dark"] .poc-uc-er-needs-btn {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .poc-uc-er-pb-tf {
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+}

@@ -1,0 +1,370 @@
+/* ================================================================
+   TIMEFRAME SELECTOR STYLES
+   ================================================================ */
+
+.tf-selector-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.tf-selector-popup {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.tf-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tf-selector-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #333;
+}
+
+.tf-selector-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #757575;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.tf-selector-close:hover {
+  color: #333;
+}
+
+.tf-selector-body {
+  padding: 16px;
+}
+
+/* Tabs */
+.tf-selector-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: #f0f0f0;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.tf-tab {
+  flex: 1;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #616161;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tf-tab:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+.tf-tab.active {
+  background: white;
+  color: #1976d2;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Panels */
+.tf-panel {
+  min-height: 140px;
+}
+
+/* Date Input */
+.tf-date-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tf-date-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+}
+
+/* Year Selector */
+.tf-year-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tf-year-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #616161;
+  transition: all 0.2s;
+}
+
+.tf-year-btn:hover {
+  background: #f5f5f5;
+  border-color: #bdbdbd;
+}
+
+.tf-year-display {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Quarter Grid */
+.tf-quarter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.tf-quarter-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.tf-quarter-btn span {
+  font-size: 10px;
+  font-weight: 400;
+  color: #9e9e9e;
+  margin-top: 4px;
+}
+
+.tf-quarter-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.tf-quarter-btn.selected {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+.tf-quarter-btn.selected span {
+  color: rgba(255,255,255,0.7);
+}
+
+/* Half Grid */
+.tf-half-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.tf-half-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.tf-half-btn span {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9e9e9e;
+  margin-top: 4px;
+}
+
+.tf-half-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.tf-half-btn.selected {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+.tf-half-btn.selected span {
+  color: rgba(255,255,255,0.7);
+}
+
+/* Month Grid */
+.tf-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.tf-month-btn {
+  padding: 10px 8px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.tf-month-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.tf-month-btn.selected {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+/* Year Grid */
+.tf-year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tf-year-item {
+  padding: 14px 12px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.tf-year-item:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.tf-year-item.selected {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+/* Footer */
+.tf-selector-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+}
+
+.tf-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tf-btn-clear {
+  background: none;
+  border: 1px solid #e0e0e0;
+  color: #757575;
+}
+
+.tf-btn-clear:hover {
+  background: #fff3e0;
+  border-color: #ffcc80;
+  color: #e65100;
+}
+
+.tf-btn-cancel {
+  background: none;
+  border: 1px solid #e0e0e0;
+  color: #616161;
+}
+
+.tf-btn-cancel:hover {
+  background: #f5f5f5;
+  border-color: #bdbdbd;
+}
+
+/* Dark Mode */
+:root[data-theme="dark"] .tf-selector-popup {
+  background: var(--bg-card);
+}
+
+:root[data-theme="dark"] .tf-selector-header {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .tf-selector-tabs {
+  background: var(--bg-elevated);
+}
+
+:root[data-theme="dark"] .tf-tab.active {
+  background: var(--bg-card);
+}
+
+:root[data-theme="dark"] .tf-date-input,
+:root[data-theme="dark"] .tf-quarter-btn,
+:root[data-theme="dark"] .tf-half-btn,
+:root[data-theme="dark"] .tf-month-btn,
+:root[data-theme="dark"] .tf-year-item,
+:root[data-theme="dark"] .tf-year-btn {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .tf-selector-footer {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}

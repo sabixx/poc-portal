@@ -81,18 +81,6 @@ def get_collection(name, collections=None):
     return collections.get(name)
 
 
-# def patch_collection_schema(collection_id, schema):
-#     """
-#     Patcht NUR das Schema einer bestehenden Collection.
-#     """
-#     resp = session.patch(
-#         f"{PB_BASE}/api/collections/{collection_id}",
-#         json={"schema": schema},
-#         timeout=10,
-#     )
-#     resp.raise_for_status()
-
-
 def ensure_field(collection, field_def):
     """
     Stellt sicher, dass ein Feld mit diesem Namen in der Collection existiert.
@@ -131,7 +119,6 @@ def ensure_field(collection, field_def):
         resp.raise_for_status()
 
     print(f"  - Feld '{name}' zu Collection '{fresh['name']}' hinzugefügt")
-
 
 
 
@@ -259,6 +246,16 @@ def json_field(name, required=False):
         # JSONField has no extra options in v0.34
     }
 
+def autodate_field(name, onCreate=True, onUpdate=True):
+    return {
+        "name": name,
+        "type": "autodate",
+        "required": False,
+        "presentable": False,
+        "unique": False,
+        "onCreate": onCreate,
+        "onUpdate": onUpdate,
+    }
 
 # ---------------------------------------------------------------------------
 # Setup-Funktionen für jede Collection
@@ -305,6 +302,7 @@ def setup_users_fields():
     Ergänzt in der bestehenden Auth-Collection 'users' die Felder:
       - role (select: se/manager/ae/pm)
       - displayName (text)
+      - region (text)
     """
     collections = get_all_collections()
     users = collections.get("users")
@@ -315,9 +313,11 @@ def setup_users_fields():
 
     role_field = select_field("role", ["se", "manager", "ae", "pm"], required=False, maxSelect=1)
     display_field = text_field("displayName", required=False, unique=False)
+    region_field = text_field("region", required=False, unique=False)
 
     ensure_field(users, role_field)
     ensure_field(users, display_field)
+    ensure_field(users, region_field)
 
 
 def setup_use_cases():
@@ -527,8 +527,10 @@ def setup_comments():
       - poc (relation -> pocs)
       - poc_use_case (relation -> poc_use_cases, optional)
       - author (relation -> users)
-      - kind (select: comment, feedback, question)
+      - kind (text)
       - text (text)
+      - created (autodate)
+      - updated (autodate)
     """
     print("[SETUP] comments")
 
@@ -544,8 +546,10 @@ def setup_comments():
         relation_field("poc", pocs["id"], maxSelect=1),
         relation_field("poc_use_case", poc_use_cases["id"], maxSelect=1),
         relation_field("author", users["id"], maxSelect=1),
-        select_field("kind", ["comment", "feedback", "question"], required=False),
+        text_field("kind", required=False, unique=False),
         text_field("text", required=False, unique=False),
+        autodate_field("created", onCreate=True, onUpdate=False),
+        autodate_field("updated", onCreate=True, onUpdate=True),
     ]
 
     coll = create_collection_if_missing("comments", "base", fields)
@@ -614,6 +618,7 @@ def setup_feature_requests():
       - status (select)
       - release_version (text)
       - release_date (date)
+      - timeframe (text)
       - product (text)
       - priority (select)
       - last_synced_at (date)
@@ -635,6 +640,7 @@ def setup_feature_requests():
         ], required=False, maxSelect=1),
         text_field("release_version", required=False, unique=False),
         date_field("release_date", required=False),
+        text_field("timeframe", required=False, unique=False),
         text_field("product", required=False, unique=False),
         select_field("priority", ["critical", "high", "medium", "low"], required=False, maxSelect=1),
         date_field("last_synced_at", required=False),
@@ -667,8 +673,7 @@ def setup_poc_feature_requests():
       - poc (relation -> pocs)
       - feature_request (relation -> feature_requests)
       - use_case (relation -> use_cases, optional)
-      - needed_by_date (date)
-      - needed_by_timeframe (text)
+      - needed_by (text)
       - customer_impact (select)
       - se_comment (text)
       - customer_comment (text) ← NEW
@@ -693,8 +698,7 @@ def setup_poc_feature_requests():
         relation_field("poc", pocs["id"], maxSelect=1),
         relation_field("feature_request", feature_requests["id"], maxSelect=1),
         relation_field("use_case", use_cases["id"], maxSelect=1),
-        date_field("needed_by_date", required=False),
-        text_field("needed_by_timeframe", required=False),
+        text_field("needed_by", required=False),
         select_field("customer_impact", ["blocker", "high", "medium", "low"], required=False, maxSelect=1),
         text_field("se_comment", required=False, unique=False),
         text_field("customer_comment", required=False, unique=False),

@@ -4,15 +4,8 @@ import { appState } from "./state.js";
 
 /**
  * Renders the compact metrics section with progress, stats, and toggle button
- * @param {Object} params
- * @param {number} params.completedUc - Number of completed use cases
- * @param {number} params.totalUc - Total number of use cases
- * @param {string} params.avgRating - Average rating (formatted string or "–")
- * @param {number} params.feedbackCount - Number of use cases with feedback
- * @param {boolean} params.showProductBoardBtn - Whether to show ProductBoard button
- * @returns {string} HTML string for metrics section
  */
-export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCount, showProductBoardBtn = false }) {
+export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCount, erCount = 0, showProductBoardBtn = false }) {
   const completionPct = totalUc > 0 ? Math.round((completedUc / totalUc) * 100) : 0;
 
   return `
@@ -48,8 +41,8 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
       </div>
       
       <div class="poc-actions-row">
-        <button type="button" class="poc-toggle-details-btn">
-          Show Use Case Details
+        <button type="button" class="poc-toggle-details-btn${erCount > 0 ? ' poc-toggle-details-btn--has-ers' : ''}" data-er-count="${erCount}">
+          ${erCount > 0 ? `Use Cases & Requests (${erCount})` : 'Show Use Case Details'}
         </button>
         ${showProductBoardBtn ? `
           <button type="button" class="poc-link-productboard-btn" title="Link to ProductBoard">
@@ -63,8 +56,6 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
 
 /**
  * Computes metrics from use cases (ratings, feedback count)
- * @param {Array} pocUcs - Array of POC use cases
- * @returns {Object} Computed metrics
  */
 export function computeUseCaseMetrics(pocUcs) {
   let totalUc = 0;
@@ -88,7 +79,6 @@ export function computeUseCaseMetrics(pocUcs) {
       ratingCount++;
     }
 
-    // Check for feedback in expanded comments
     if (puc.expand && puc.expand.comments) {
       const hasFeedback = puc.expand.comments.some(comment => 
         comment.kind === "feedback" && comment.text && comment.text.trim() !== ""
@@ -111,26 +101,21 @@ export function computeUseCaseMetrics(pocUcs) {
 
 /**
  * Renders the use case details section with table
- * @param {Array} pocUcs - Array of POC use cases
- * @param {string} pocId - POC ID
- * @returns {string} HTML string for details section
+ * NOW ACCEPTS featureRequests AND customerName
  */
-export function renderUseCaseDetails(pocUcs, pocId) {
+export function renderUseCaseDetails(pocUcs, pocId, featureRequests = [], customerName = '') {
   return `
     <div class="poc-details hidden">
-      ${renderActiveUseCaseTable(pocUcs, pocId)}
+      ${renderActiveUseCaseTable(pocUcs, pocId, featureRequests, customerName)}
     </div>
   `;
 }
 
 /**
  * Attaches event listeners for metrics section (toggle, ProductBoard)
- * @param {HTMLElement} card - The POC card element
- * @param {string} pocId - POC ID
- * @param {Array} pbLinks - ProductBoard links
- * @param {Function} showProductBoardLinkModal - Function to show ProductBoard modal
+ * NOW ACCEPTS onRefresh callback
  */
-export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLinkModal, pb) {  
+export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLinkModal, pb, onRefresh = null) {  
   // Toggle use case details
   const toggleBtn = card.querySelector(".poc-toggle-details-btn");
   const detailsEl = card.querySelector(".poc-details");
@@ -140,7 +125,13 @@ export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLin
       evt.stopPropagation();
       const isHidden = detailsEl.classList.contains("hidden");
       detailsEl.classList.toggle("hidden", !isHidden);
-      toggleBtn.textContent = isHidden ? "Hide Use Case Details" : "Show Use Case Details";
+      
+      const erCount = parseInt(toggleBtn.dataset.erCount) || 0;
+      if (isHidden) {
+        toggleBtn.textContent = erCount > 0 ? "Hide Use Cases & Requests" : "Hide Use Case Details";
+      } else {
+        toggleBtn.textContent = erCount > 0 ? `Use Cases & Requests (${erCount})` : "Show Use Case Details";
+      }
     });
   }
 
@@ -149,11 +140,11 @@ export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLin
   if (pbBtn && showProductBoardLinkModal) {
     pbBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
-      
-      showProductBoardLinkModal(pb, pocId, null);
+      // Pass refresh callback to modal
+      showProductBoardLinkModal(pb, pocId, null, onRefresh);
     });
   }
 
-  // Attach use case table listeners (for 🔗 buttons in table rows)
-  attachUseCaseTableListeners(card);
+  // Attach use case table listeners with refresh callback
+  attachUseCaseTableListeners(card, onRefresh);
 }

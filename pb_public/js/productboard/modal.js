@@ -1,6 +1,6 @@
 // productboard/modal.js
 // ProductBoard Modal - COMPLETE WORKING VERSION
-console.log('[ProductBoard Modal] VERSION 2.1 - With poc_use_case resolution');
+console.log('[ProductBoard Modal] VERSION 2.2 - With refresh callback support');
 
 import { searchFeatures, getProducts, getExistingLinks, createLink, deleteLink } from './api.js';
 import { loadAndRenderHotERs, loadAndRenderRecentFeatures } from './suggestions.js';
@@ -16,17 +16,27 @@ import { showCreateERModal } from './create_er_modal.js';
 
 let currentModal = null;
 let searchTimeout = null;
+let onRefreshCallback = null;
 
 /**
  * Show ProductBoard link modal
  * @param {Object} pb - PocketBase instance
  * @param {string} pocId - POC ID
  * @param {string} useCaseId - Use case ID (optional)
+ * @param {Function} refreshCallback - Callback to refresh parent view after changes (optional)
  * @param {Object} options - Additional options
- * @param {Array} options.existingLinks - Pre-fetched existing links (optional, avoids query)
  */
-export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, options = {}) {
-  console.log('[ProductBoard Modal] Opening modal', { pocId, useCaseId, options });
+export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, refreshCallback = null, options = {}) {
+  // Handle old signature: (pb, pocId, useCaseId, options)
+  if (refreshCallback && typeof refreshCallback === 'object' && !options) {
+    options = refreshCallback;
+    refreshCallback = null;
+  }
+  
+  console.log('[ProductBoard Modal] Opening modal', { pocId, useCaseId, hasRefreshCallback: !!refreshCallback });
+  
+  // Store refresh callback
+  onRefreshCallback = refreshCallback;
   
   // Check authorization
   if (!isAuthorized(pb)) {
@@ -93,6 +103,20 @@ export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, opt
 }
 
 /**
+ * Call refresh callback if set
+ */
+function triggerRefresh() {
+  if (onRefreshCallback && typeof onRefreshCallback === 'function') {
+    console.log('[ProductBoard Modal] Triggering refresh callback');
+    try {
+      onRefreshCallback();
+    } catch (e) {
+      console.error('[ProductBoard Modal] Refresh callback error:', e);
+    }
+  }
+}
+
+/**
  * Create modal HTML
  */
 function createModalHTML(allowCreateER) {
@@ -138,7 +162,7 @@ function createModalHTML(allowCreateER) {
         
         <!-- Hot ERs -->
         <div class="pb-hot-ers-section">
-          <h3>🔥 Hot ERs (from Sales Engineers)</h3>
+          <h3>🔥 Trending ERs (from Sales Engineers)</h3>
           <div data-element="hot-ers-list">
             <div class="pb-loading">Loading hot ERs...</div>
           </div>
@@ -146,7 +170,7 @@ function createModalHTML(allowCreateER) {
         
         <!-- Recent Features -->
         <div class="pb-recent-section">
-          <h3>🔄 Recent Features (ProductBoard)</h3>
+          <h3>🔄 Recently Updated Features (ProductBoard)</h3>
           <div data-element="recent-list">
             <div class="pb-loading">Loading recent features...</div>
           </div>
@@ -213,7 +237,7 @@ function setupEventListeners(pb, pocId, useCaseId) {
     } else if (target.dataset.action === 'toggle-desc') {
       toggleDescription(target);
     } else if (target.dataset.action === 'create-er') {
-      handleCreateERButtonClick();
+      handleCreateER();
     }
   });
 }
@@ -585,6 +609,9 @@ async function handleLink(button, pb, pocId, useCaseId) {
     // Refresh existing links section
     await loadExistingLinks(pb, pocId, useCaseId);
     
+    // Trigger parent refresh
+    triggerRefresh();
+    
   } catch (error) {
     console.error('[ProductBoard] Link/unlink error:', error);
     
@@ -615,6 +642,7 @@ async function handleUnlink(button, pb) {
     await deleteLink(pb, linkId);
     await loadExistingLinks(pb, window.currentPocId, window.currentUseCaseId);
     showSuccessNotification('Link removed');
+    triggerRefresh();
     console.log('[ProductBoard] Unlinked:', linkId);
   } catch (error) {
     console.error('[ProductBoard] Unlink error:', error);
@@ -649,18 +677,15 @@ function toggleDescription(button) {
 }
 
 /**
- * Handle create ER button from the linking modal:
- *  - close current ProductBoard linking modal
- *  - open the dedicated Create ER modal
+ * Handle create ER
  */
-function handleCreateERButtonClick() {
-  console.log('[ProductBoard Modal] Create New ER clicked');
-  // close the link modal
+function handleCreateER() {
+  // Close current modal first
   closeModal();
-  // open the create-ER modal
-  showCreateERModal();
+  
+  // Open Create ER modal
+  showCreateERModal(window.pb, window.currentPocId, window.currentUseCaseId, onRefreshCallback);
 }
-
 
 /**
  * Close modal
