@@ -320,6 +320,8 @@ def setup_users_fields():
     ensure_field(users, region_field)
 
 
+
+
 def setup_use_cases():
     """
     use_cases:
@@ -332,6 +334,7 @@ def setup_use_cases():
       - category (text) 
       - estimate_hours (number)
       - is_customer_prep (bool)
+      - author (text)
     """
     print("[SETUP] use_cases")
     fields = [
@@ -344,6 +347,7 @@ def setup_use_cases():
         text_field("category", required=False),
         number_field("estimate_hours", required=False),
         bool_field("is_customer_prep", required=False),
+        text_field("author", required=False, unique=False),
     ]
     coll = create_collection_if_missing("use_cases", "base", fields)
     collections = get_all_collections()
@@ -376,6 +380,7 @@ def setup_pocs():
       - name (text)
       - customer_name (text)
       - partner (text)
+      - product (text)
       - se (relation -> users)
       - prep_start_date (date)
       - poc_start_date (date)
@@ -390,6 +395,7 @@ def setup_pocs():
       - commercial_result (select: unknown, now_customer, lost, no_decision, other)
       - se_comment (text)
       - aeb (text)
+      - deregistered_at
     """
     print("[SETUP] pocs")
 
@@ -403,6 +409,7 @@ def setup_pocs():
         text_field("name", required=True, unique=False),
         text_field("customer_name", required=False, unique=False),
         text_field("partner", required=False, unique=False),
+        text_field("product", required=False, unique=False),
         relation_field("se", users["id"], maxSelect=1),
         date_field("prep_start_date", required=False),
         date_field("poc_start_date", required=False),
@@ -413,11 +420,12 @@ def setup_pocs():
         date_field("last_daily_update_at", required=False),
         date_field("completion_date_auto", required=False),
         select_field("risk_status", ["on_track", "at_risk", "overdue"], required=False),
-
         select_field("technical_result", ["unknown", "win", "loss", "other"], required=False),
         select_field("commercial_result", ["unknown", "now_customer", "lost", "no_decision", "other"], required=False),
         text_field("se_comment", required=False, unique=False),
         text_field("aeb", required=False, unique=False),
+        date_field("deregistered_at", required=False),
+        
     ]
 
     coll = create_collection_if_missing("pocs", "base", fields)
@@ -486,6 +494,7 @@ def setup_poc_use_cases():
       - is_completed (bool)
       - completed_at (date)
       - rating (number)
+      - order (number) 
     """
     print("[SETUP] poc_use_cases")
 
@@ -502,6 +511,7 @@ def setup_poc_use_cases():
         bool_field("is_completed", required=False),
         date_field("completed_at", required=False),
         number_field("rating", required=False),
+        number_field("order", required=False),
     ]
 
     coll = create_collection_if_missing("poc_use_cases", "base", fields)

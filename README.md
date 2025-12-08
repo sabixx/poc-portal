@@ -14,7 +14,7 @@ A status overview of all POCs
       - customer prep bar is to dominant.... 
       - "needs by" and PB TIMEFRAME are not horiyontaly allinged..
       - find a better visualizatzion as deal breaker..
-      - botton corners of active use cases is round, bottom corner of In-Revew is straight corners... 
+      - botton corners of active use cases is round, bottom corner of In-Revew is straight corners...
 
 - long comments are cut off, need some option to show the whole comment..
 
@@ -34,7 +34,11 @@ A status overview of all POCs
 
 - comments not shown.... 
 
+- ADD the product NAME to the POC :-() -- allow to filter for products somewhere..
+
 # TODO
+
+- track competitors
 
 - remove hard coded key for testing from the public api..
 
@@ -108,6 +112,8 @@ A status overview of all POCs
 - add option to add insights...
 
 - add a daily hook or some task task to update PB deliver dates for each ER... 
+
+- integrate with a ticket system and catch updates/ send feedback... option to escalate...would need ticket system of their choise btw..
 
 - make a notification for customer feedback to review so when new feedback came it notifiy via a widget that there is feedback to review and make this to be ACKloedge by the SE and all managers that belong to this SE.. PM should see all feedback from all SEs as well see the "feedback to review".
 

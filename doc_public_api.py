@@ -315,6 +315,34 @@ def api_daily_update():
             timeout=10,
         )
 
+        resp = SESSION.get(
+            f"{PB_BASE}/api/collections/poc_use_cases/records",
+            params={"filter": f'poc="{poc_id}"', "perPage": 500},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        existing_pucs = resp.json().get("items", [])
+        print(f"[API] Found {len(existing_pucs)} existing poc_use_cases for POC {poc_id}")
+
+    for puc in existing_pucs:
+        print(f"[API]   - {puc['id']}: is_active={puc.get('is_active')}")
+        if puc.get("is_active"):
+            resp_patch = SESSION.patch(
+                f"{PB_BASE}/api/collections/poc_use_cases/records/{puc['id']}",
+                json={"is_active": False},
+                timeout=10,
+            )
+            print(f"[API]   -> Deactivated, status={resp_patch.status_code}")
+
+
+        for puc in existing_pucs:
+            if puc.get("is_active"):
+                SESSION.patch(
+                    f"{PB_BASE}/api/collections/poc_use_cases/records/{puc['id']}",
+                    json={"is_active": False},
+                    timeout=10,
+                )
+
         # Use Cases
         use_cases: List[Dict[str, Any]] = data.get("use_cases", [])
         for uc in use_cases:

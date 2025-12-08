@@ -2,43 +2,78 @@
 """
 POC Portal – Public API Backend (Python + PocketBase)
 
-Exposes 3 endpoints:
+Endpoints:
 
-1) POST /api/daily_update
-   - Daily snapshot of a POC (who is the SE, which use cases are in scope,
-     which are active/completed, etc.).
-   - Creates/updates:
-       * SE mapping (users collection in PocketBase)
-       * POC record (pocs collection)
-       * Use case records (use_cases collection, including version/product info, category,
-       * Poc-use-case links (poc_use_cases collection)
+1) POST /api/register
+   - Register/lookup a POC by se.email + prospect + product (composite key)
+   - Returns existing poc_uid if found, or creates new POC and returns new poc_uid
 
-2) POST /api/complete_use_case
-   - Mark a single use case as completed for a POC.
-   - Optional rating + feedback text.
+2) POST /api/deregister
+   - Mark a POC as inactive (for mistaken POC→demo cleanup)
 
-3) POST /api/comment
-   - Add a feedback or question entry for a specific POC/use case.
+3) POST /api/heartbeat
+   - Daily status update with use cases including full metadata from YAML files
+   - Includes order from config.json for poc_use_cases
+
+4) POST /api/complete_use_case
+   - Toggle completion status for a use case
+
+5) POST /api/rating
+   - Set star rating (1-5) for a use case
+
+6) POST /api/feedback
+   - Submit text feedback for a use case
 
 Authentication / config via env vars:
 
   PB_BASE           e.g. "http://127.0.0.1:8090"
-  PB_API_EMAIL      PocketBase ADMIN email
-  PB_API_PASSWORD   PocketBase ADMIN password
+  PB_ADMIN_EMAIL    PocketBase ADMIN email
+  PB_ADMIN_PASSWORD PocketBase ADMIN password
   API_PORT          default 8000
-  API_SHARED_SECRET optional shared secret for X-Api-Key (if set, required)
+  API_SHARED_SECRET optional shared secret for X-Api-Key
+
+PocketBase Schema:
+  use_cases: code, title, description, version, product_family, product, category, estimate_hours, is_customer_prep, author
+  poc_use_cases: poc, use_case, is_active, is_completed, completed_at, rating, order
 """
 
 import os
+import sys
 import json
+import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-
 import secrets
 import string
+import uuid
 
 import requests
 from flask import Flask, request, jsonify
+
+# ---------------------------------------------------------------------------
+# Logging Configuration
+# ---------------------------------------------------------------------------
+
+LOG_FILE = os.getenv("API_LOG_FILE", "/data/poc_api.log")
+
+# Ensure log directory exists
+log_dir = os.path.dirname(LOG_FILE)
+if log_dir and not os.path.exists(log_dir):
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+    except Exception:
+        LOG_FILE = "/tmp/poc_api.log"
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -47,7 +82,6 @@ from flask import Flask, request, jsonify
 PB_BASE = os.getenv("PB_BASE", "http://127.0.0.1:8090")
 SERVICE_EMAIL = os.getenv("PB_ADMIN_EMAIL", "admin@example.com")
 SERVICE_PASSWORD = os.getenv("PB_ADMIN_PASSWORD", "changeme123")
-
 API_SHARED_SECRET = os.getenv("API_SHARED_SECRET")
 
 SESSION = requests.Session()
@@ -56,8 +90,41 @@ AUTH_TOKEN: Optional[str] = None
 app = Flask(__name__)
 
 # ---------------------------------------------------------------------------
+# Request/Response Logging Middleware
+# ---------------------------------------------------------------------------
+
+@app.before_request
+def log_request_info():
+    """Log details of every incoming request."""
+    logger.info("=" * 60)
+    logger.info(f"INCOMING REQUEST: {request.method} {request.path}")
+    logger.info(f"Remote IP: {request.remote_addr}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    
+    if request.method in ['POST', 'PUT', 'PATCH']:
+        try:
+            body = request.get_json(silent=True)
+            if body:
+                safe_body = body.copy() if isinstance(body, dict) else body
+                if isinstance(safe_body, dict) and 'password' in safe_body:
+                    safe_body['password'] = '***'
+                logger.info(f"Request Body: {json.dumps(safe_body, indent=2)}")
+            else:
+                logger.info(f"Request Body (raw): {request.get_data(as_text=True)[:500]}")
+        except Exception as e:
+            logger.warning(f"Could not parse request body: {e}")
+
+@app.after_request
+def log_response_info(response):
+    """Log response status."""
+    logger.info(f"RESPONSE: {response.status_code} {response.status}")
+    logger.info("=" * 60)
+    return response
+
+# ---------------------------------------------------------------------------
 # Helpers: Auth, API key, PocketBase access
 # ---------------------------------------------------------------------------
+
 
 def service_login():
     """Log in as PocketBase SUPERUSER and set the Bearer token on the session."""
@@ -65,17 +132,21 @@ def service_login():
     if AUTH_TOKEN:
         return
 
-    resp = SESSION.post(
-        f"{PB_BASE}/api/collections/_superusers/auth-with-password",
-        json={"identity": SERVICE_EMAIL, "password": SERVICE_PASSWORD},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    token = data["token"]
-    AUTH_TOKEN = token
-    SESSION.headers["Authorization"] = f"Bearer {token}"
-    print(f"[API] Service logged in as SUPERUSER {SERVICE_EMAIL}")
+    try:
+        resp = SESSION.post(
+            f"{PB_BASE}/api/collections/_superusers/auth-with-password",
+            json={"identity": SERVICE_EMAIL, "password": SERVICE_PASSWORD},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        token = data["token"]
+        AUTH_TOKEN = token
+        SESSION.headers["Authorization"] = f"Bearer {token}"
+        logger.info(f"Service logged in as SUPERUSER {SERVICE_EMAIL}")
+    except Exception as e:
+        logger.error(f"Failed to login to PocketBase: {e}")
+        raise
 
 
 def check_api_key() -> bool:
@@ -92,27 +163,33 @@ def _generate_random_password(length: int = 16) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def get_or_create_user_se(email: str) -> str:
+def _generate_poc_uid() -> str:
+    """Generate a unique POC UID."""
+    return f"POC-{uuid.uuid4().hex[:12].upper()}"
+
+
+def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Look up SE user by email in PocketBase `users` collection.
-
-    - If the user exists -> return its id (and ensure role includes 'se').
-    - If the user is missing -> auto-create it with role='se' and a random password.
+    If missing, auto-create with role='se' and trigger password reset email.
     """
+    logger.info(f"[get_or_create_user_se] Starting for email={email}, display_name={display_name}")
+    
     service_login()
 
     email_lower = email.strip().lower()
     url = f"{PB_BASE}/api/collections/users/records"
 
-    # 1) Try to find existing user by email via filter
     resp = SESSION.get(
         url,
-        params={
-            "filter": f'email="{email_lower}"',
-            "perPage": 1,
-        },
+        params={"filter": f'email="{email_lower}"', "perPage": 1},
         timeout=10,
     )
+    
+    if resp.status_code >= 400:
+        logger.error(f"[get_or_create_user_se] User lookup failed: {resp.status_code} {resp.text}")
+        raise Exception(f"User lookup failed: {resp.status_code} {resp.text}")
+
     resp.raise_for_status()
     items = resp.json().get("items", [])
 
@@ -120,48 +197,130 @@ def get_or_create_user_se(email: str) -> str:
         user = items[0]
         user_id = user["id"]
         current_role = user.get("role")
+        
+        logger.info(f"[get_or_create_user_se] Found existing user: id={user_id}, role={current_role}")
 
-        # If role is empty, set it to 'se' so it behaves as expected
         if not current_role:
             try:
-                SESSION.patch(
-                    f"{url}/{user_id}",
-                    json={"role": "se"},
-                    timeout=10,
-                )
-                print(f"[API] Updated existing user {email_lower} -> role='se'")
-            except requests.HTTPError as e:
-                print("[API] WARNING: failed to patch user role:", e.response.text)
+                SESSION.patch(f"{url}/{user_id}", json={"role": "se"}, timeout=10)
+                logger.info(f"[get_or_create_user_se] Updated existing user {email_lower} -> role='se'")
+            except Exception as e:
+                logger.warning(f"[get_or_create_user_se] Failed to patch user role: {e}")
 
-        print(f"[API] Found SE user {email_lower} as id={user_id}")
-        return user_id
+        return {"id": user_id, "is_new": False, "email": email_lower}
 
-    # 2) User not found -> create a new SE user
+    # User not found -> create
+    logger.info(f"[get_or_create_user_se] Creating new SE user: {email_lower}")
     password = _generate_random_password()
-
+    name = display_name or email_lower.split("@")[0].replace(".", " ").title()
+    
     payload = {
         "email": email_lower,
         "emailVisibility": True,
         "password": password,
         "passwordConfirm": password,
         "role": "se",
-        "displayName": email_lower.split("@")[0],
+        "name": name,
+        "displayName": name,
     }
 
-    resp = SESSION.post(
-        url,
-        json=payload,
-        timeout=10,
-    )
+    resp = SESSION.post(url, json=payload, timeout=10)
+    
+    if resp.status_code >= 400:
+        logger.error(f"[get_or_create_user_se] User creation failed: {resp.status_code} {resp.text}")
+        raise Exception(f"User creation failed: {resp.status_code} {resp.text}")
+
     resp.raise_for_status()
     user = resp.json()
     user_id = user["id"]
 
-    print(
-        f"[API] Created SE user {email_lower} as id={user_id} "
-        f"(random password, role='se')"
+    logger.info(f"[get_or_create_user_se] Created SE user: id={user_id}, email={email_lower}")
+    
+    # Trigger password reset email
+    try:
+        SESSION.post(
+            f"{PB_BASE}/api/collections/users/request-password-reset",
+            json={"email": email_lower},
+            timeout=10,
+        )
+        logger.info(f"[get_or_create_user_se] Password reset email sent to {email_lower}")
+    except Exception as e:
+        logger.warning(f"[get_or_create_user_se] Could not send password reset email: {e}")
+    
+    return {"id": user_id, "is_new": True, "email": email_lower}
+
+
+def find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Find a user by email. Returns user dict if found, None otherwise."""
+    service_login()
+    
+    email_lower = email.strip().lower()
+    url = f"{PB_BASE}/api/collections/users/records"
+    
+    resp = SESSION.get(
+        url,
+        params={"filter": f'email="{email_lower}"', "perPage": 1},
+        timeout=10,
     )
-    return user_id
+    
+    if resp.status_code >= 400:
+        return None
+    
+    items = resp.json().get("items", [])
+    return items[0] if items else None
+
+
+def find_poc_by_composite_key(sa_email: str, customer_name: str, product: str) -> Optional[Dict[str, Any]]:
+    """Find an existing POC by the composite key: se.email + customer_name + product."""
+    logger.info(f"[find_poc_by_composite_key] Looking for POC: sa_email={sa_email}, customer={customer_name}, product={product}")
+    
+    service_login()
+
+    user = find_user_by_email(sa_email)
+    if not user:
+        logger.info(f"[find_poc_by_composite_key] No user found for email {sa_email}")
+        return None
+    
+    user_id = user["id"]
+    customer_escaped = customer_name.replace('"', '\\"')
+    product_escaped = product.replace('"', '\\"')
+
+    filter_expr = f'se="{user_id}" && customer_name="{customer_escaped}" && product="{product_escaped}"'
+
+    resp = SESSION.get(
+        f"{PB_BASE}/api/collections/pocs/records",
+        params={"filter": filter_expr, "perPage": 1},
+        timeout=10,
+    )
+
+    if resp.status_code >= 400:
+        return None
+
+    items = resp.json().get("items", [])
+    
+    if items:
+        poc = items[0]
+        logger.info(f"[find_poc_by_composite_key] Found POC: poc_uid={poc.get('poc_uid')}")
+        return poc
+    
+    return None
+
+
+def find_poc_by_uid(poc_uid: str) -> Optional[Dict[str, Any]]:
+    """Find a POC by its poc_uid."""
+    service_login()
+
+    resp = SESSION.get(
+        f"{PB_BASE}/api/collections/pocs/records",
+        params={"filter": f'poc_uid="{poc_uid}"', "perPage": 1},
+        timeout=10,
+    )
+    
+    if resp.status_code >= 400:
+        return None
+        
+    items = resp.json().get("items", [])
+    return items[0] if items else None
 
 
 def get_or_create_usecase(
@@ -170,17 +329,21 @@ def get_or_create_usecase(
     version: int = 1,
     product_family: Optional[str] = None,
     product: Optional[str] = None,
-    description: Optional[str] = None,
     category: Optional[str] = None,
+    description: Optional[str] = None,
+    estimate_hours: Optional[int] = None,
     is_customer_prep: Optional[bool] = None,
-    estimate_hours: Optional[float] = None,
+    author: Optional[str] = None,
 ) -> str:
     """
-    Ensure a use case record exists in `use_cases` with the given code+version.
-    If it already exists, update meta fields (incl. category,
-    is_customer_prep, estimate_hours) if necessary.
+    Ensure a use case record exists in use_cases collection.
+    Accepts all metadata fields from YAML files.
+    Updates existing records if metadata has changed.
+    
+    Returns the use case record ID.
     """
     service_login()
+
     filter_expr = f'code="{code}" && version={int(version)}'
     resp = SESSION.get(
         f"{PB_BASE}/api/collections/use_cases/records",
@@ -191,63 +354,67 @@ def get_or_create_usecase(
     items = resp.json().get("items", [])
 
     if items:
-        uc = items[0]
-        uc_id = uc["id"]
-
-        patch: Dict[str, Any] = {}
-
-        # Only patch when something changed – avoids unnecessary writes
-        if title and uc.get("title") != title:
-            patch["title"] = title
-        if product_family and uc.get("product_family") != product_family:
-            patch["product_family"] = product_family
-        if product and uc.get("product") != product:
-            patch["product"] = product
-        if description and uc.get("description") != description:
-            patch["description"] = description
-        if category and uc.get("category") != category:
-            patch["category"] = category
-        if is_customer_prep is not None and uc.get("is_customer_prep") != bool(
-            is_customer_prep
-        ):
-            patch["is_customer_prep"] = bool(is_customer_prep)
-        if (
-            estimate_hours is not None 
-            and uc.get("estimate_hours") != float(estimate_hours)
-        ):
-            patch["estimate_hours"] = float(estimate_hours)
-
-        if patch:
-            SESSION.patch(
+        existing = items[0]
+        uc_id = existing["id"]
+        
+        # Check if we need to update any fields
+        update_payload: Dict[str, Any] = {}
+        
+        if title and existing.get("title") != title:
+            update_payload["title"] = title
+        if description is not None and existing.get("description") != description:
+            update_payload["description"] = description
+        if product_family is not None and existing.get("product_family") != product_family:
+            update_payload["product_family"] = product_family
+        if product is not None and existing.get("product") != product:
+            update_payload["product"] = product
+        if category is not None and existing.get("category") != category:
+            update_payload["category"] = category
+        if estimate_hours is not None and existing.get("estimate_hours") != estimate_hours:
+            update_payload["estimate_hours"] = estimate_hours
+        if is_customer_prep is not None and existing.get("is_customer_prep") != is_customer_prep:
+            update_payload["is_customer_prep"] = is_customer_prep
+        if author is not None and existing.get("author") != author:
+            update_payload["author"] = author
+        
+        if update_payload:
+            logger.info(f"Updating use_case {code} with: {update_payload}")
+            resp = SESSION.patch(
                 f"{PB_BASE}/api/collections/use_cases/records/{uc_id}",
-                json=patch,
+                json=update_payload,
                 timeout=10,
             )
-            print(f"[API] Updated use_case {code} v{version} with {patch}")
-
+            if resp.status_code >= 400:
+                logger.warning(f"Failed to update use_case {code}: {resp.status_code} {resp.text}")
+        
         return uc_id
 
-    # --- does not exist yet → create ---
+    # Create new use case
     if not title:
-        title = code.replace("-", " ").title()
+        title = code.split('/').pop().replace("-", " ").title()
 
     payload: Dict[str, Any] = {
         "code": code,
         "title": title,
         "version": int(version),
     }
-    if product_family:
-        payload["product_family"] = product_family
-    if product:
-        payload["product"] = product
-    if description:
+    
+    if description is not None:
         payload["description"] = description
-    if category:
+    if product_family is not None:
+        payload["product_family"] = product_family
+    if product is not None:
+        payload["product"] = product
+    if category is not None:
         payload["category"] = category
-    if is_customer_prep is not None:
-        payload["is_customer_prep"] = bool(is_customer_prep)
     if estimate_hours is not None:
-        payload["estimate_hours"] = float(estimate_hours)
+        payload["estimate_hours"] = estimate_hours
+    if is_customer_prep is not None:
+        payload["is_customer_prep"] = is_customer_prep
+    if author is not None:
+        payload["author"] = author
+
+    logger.info(f"Creating use_case {code} with payload: {payload}")
 
     resp = SESSION.post(
         f"{PB_BASE}/api/collections/use_cases/records",
@@ -256,56 +423,31 @@ def get_or_create_usecase(
     )
     resp.raise_for_status()
     uc = resp.json()
-    print(f"[API] Created use_case {code} v{version}")
+    logger.info(f"Created use_case {code} v{version}")
     return uc["id"]
 
 
-def get_or_create_poc(
-    poc_uid: str,
-    name: Optional[str],
-    customer_name: Optional[str],
-    se_id: str,
-    partner: Optional[str] = None,
+def get_or_create_poc_usecase(
+    poc_id: str,
+    uc_id: str,
+    order: Optional[int] = None,
+    is_active: bool = True,
+    is_completed: bool = False,
 ) -> str:
-    """Get or create a POC record by poc_uid."""
+    """
+    Get or create the poc_use_cases link between a POC and a use case.
+    
+    Args:
+        poc_id: POC record ID
+        uc_id: use_case record ID
+        order: Display order from config.json useCaseOrder
+        is_active: Whether the use case is active
+        is_completed: Whether the use case is completed
+    
+    Returns the poc_use_case record ID.
+    """
     service_login()
-    resp = SESSION.get(
-        f"{PB_BASE}/api/collections/pocs/records",
-        params={"filter": f'poc_uid="{poc_uid}"'},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    items = resp.json().get("items", [])
-    if items:
-        return items[0]["id"]
 
-    payload: Dict[str, Any] = {
-        "poc_uid": poc_uid,
-        "name": name or poc_uid,
-        "customer_name": customer_name,
-        "se": se_id,
-        "is_active": True,
-        "is_completed": False,
-        "risk_status": "on_track",
-        "last_daily_update_at": datetime.utcnow().isoformat() + "Z",
-    }
-    if partner:
-        payload["partner"] = partner
-
-    resp = SESSION.post(
-        f"{PB_BASE}/api/collections/pocs/records",
-        json=payload,
-        timeout=10,
-    )
-    resp.raise_for_status()
-    poc = resp.json()
-    print(f"[API] Created POC {poc_uid}")
-    return poc["id"]
-
-
-def get_or_create_poc_usecase(poc_id: str, uc_id: str) -> str:
-    """Get or create the poc_use_cases link between a POC and a use case."""
-    service_login()
     resp = SESSION.get(
         f"{PB_BASE}/api/collections/poc_use_cases/records",
         params={"filter": f'poc="{poc_id}" && use_case="{uc_id}"'},
@@ -313,43 +455,87 @@ def get_or_create_poc_usecase(poc_id: str, uc_id: str) -> str:
     )
     resp.raise_for_status()
     items = resp.json().get("items", [])
+
     if items:
-        return items[0]["id"]
+        existing = items[0]
+        puc_id = existing["id"]
+        
+        # Build update payload
+        update_payload: Dict[str, Any] = {}
+        
+        if order is not None and existing.get("order") != order:
+            update_payload["order"] = order
+        if existing.get("is_active") != is_active:
+            update_payload["is_active"] = is_active
+        if existing.get("is_completed") != is_completed:
+            update_payload["is_completed"] = is_completed
+            if is_completed:
+                update_payload["completed_at"] = datetime.utcnow().isoformat() + "Z"
+            else:
+                update_payload["completed_at"] = None
+        
+        if update_payload:
+            SESSION.patch(
+                f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
+                json=update_payload,
+                timeout=10,
+            )
+            logger.info(f"Updated poc_use_case {puc_id}: {update_payload}")
+        
+        return puc_id
+
+    # Create new
+    create_payload: Dict[str, Any] = {
+        "poc": poc_id,
+        "use_case": uc_id,
+        "is_active": is_active,
+        "is_completed": is_completed,
+    }
+    
+    if order is not None:
+        create_payload["order"] = order
+    
+    if is_completed:
+        create_payload["completed_at"] = datetime.utcnow().isoformat() + "Z"
 
     resp = SESSION.post(
         f"{PB_BASE}/api/collections/poc_use_cases/records",
-        json={"poc": poc_id, "use_case": uc_id},
+        json=create_payload,
         timeout=10,
     )
     resp.raise_for_status()
     puc = resp.json()
-    print(f"[API] Created poc_use_case for POC {poc_id}, UC {uc_id}")
+    logger.info(f"Created poc_use_case for POC {poc_id}, UC {uc_id}, order={order}")
     return puc["id"]
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: POST /api/daily_update
+# Endpoint: POST /api/register
 # ---------------------------------------------------------------------------
 
 
-@app.route("/api/daily_update", methods=["POST"])
-def api_daily_update():
+@app.route("/api/register", methods=["POST"])
+def api_register():
     """
-    Daily update for a POC.
+    Register or lookup a POC by composite key (se.email + prospect + product).
 
-    This endpoint:
-      - Resolves the SE (users collection)
-      - Gets/creates the POC record
-      - Updates POC meta (dates, customer, partner, last_daily_update_at)
-      - For each use case in `use_cases`:
-          * ensures/updates the catalog record in `use_cases`
-            (incl. category, is_customer_prep, estimate_hours)
-          * ensures the poc_use_cases link exists
-          * updates ONLY is_active, is_completed, completed_at on poc_use_cases
+    Expected JSON:
+    {
+      "sa_name": "Jens Sabitzer",
+      "sa_email": "jens.sabitzer@cyberark.com",
+      "prospect": "ACME Bank",
+      "product": "Certificate Manager SaaS",
+      "partner": "BigPartner GmbH",        // optional
+      "poc_start_date": "2025-12-04",      // optional
+      "poc_end_date": "2026-01-03"         // optional
+    }
 
-    NOTE:
-      * Rating and textual feedback are NOT processed here.
-        Those are handled by /api/complete_use_case (and optional extra APIs).
+    Response:
+    {
+      "status": "ok",
+      "poc_uid": "POC-ABC123DEF456",
+      "is_new": true/false
+    }
     """
     if not check_api_key():
         return jsonify({"error": "unauthorized"}), 401
@@ -358,105 +544,315 @@ def api_daily_update():
     if not data:
         return jsonify({"error": "invalid_json"}), 400
 
+    sa_email = data.get("sa_email")
+    sa_name = data.get("sa_name")
+    prospect = data.get("prospect")
+    product = data.get("product")
+
+    if not sa_email or not prospect or not product:
+        return jsonify({
+            "error": "missing_required_fields",
+            "details": "sa_email, prospect, and product are required"
+        }), 400
+
     try:
         service_login()
 
-        se_email = data["se_email"]
-        se_id = get_or_create_user_se(se_email)
+        # Check if POC already exists
+        existing_poc = find_poc_by_composite_key(sa_email, prospect, product)
 
-        poc_uid = data["poc_uid"]
-        poc_name = data.get("poc_name", poc_uid)
-        customer_name = data.get("customer_name")
-        partner = data.get("partner")
+        if existing_poc:
+            poc_uid = existing_poc["poc_uid"]
+            poc_id = existing_poc["id"]
 
-        poc_id = get_or_create_poc(
-            poc_uid,
-            poc_name,
-            customer_name,
-            se_id,
-            partner=partner,
-        )
+            # Update optional fields if provided
+            patch: Dict[str, Any] = {}
+            if data.get("partner"):
+                patch["partner"] = data["partner"]
+            if data.get("poc_start_date"):
+                patch["poc_start_date"] = data["poc_start_date"]
+            if data.get("poc_end_date"):
+                patch["poc_end_date_plan"] = data["poc_end_date"]
 
-        # --- POC-Felder aktualisieren -----------------------------------
-        patch: Dict[str, Any] = {}
+            if patch:
+                SESSION.patch(
+                    f"{PB_BASE}/api/collections/pocs/records/{poc_id}",
+                    json=patch,
+                    timeout=10,
+                )
 
-        if data.get("prep_start_date"):
-            patch["prep_start_date"] = data["prep_start_date"]
+            logger.info(f"Found existing POC: {poc_uid}")
+            return jsonify({"status": "ok", "poc_uid": poc_uid, "is_new": False}), 200
+
+        # Create new POC
+        user_result = get_or_create_user_se(sa_email, display_name=sa_name)
+        se_id = user_result["id"]
+        user_is_new = user_result["is_new"]
+        
+        if not se_id:
+            return jsonify({
+                "error": "user_creation_failed",
+                "details": f"Could not create or find user for {sa_email}"
+            }), 500
+        
+        poc_uid = _generate_poc_uid()
+
+        payload: Dict[str, Any] = {
+            "poc_uid": poc_uid,
+            "product": product,
+            "name": f"{prospect} - {product}",
+            "customer_name": prospect,
+            "se": se_id,
+            "is_active": True,
+            "is_completed": False,
+            "risk_status": "on_track",
+            "last_daily_update_at": datetime.utcnow().isoformat() + "Z",
+        }
+
+        if data.get("partner"):
+            payload["partner"] = data["partner"]
         if data.get("poc_start_date"):
-            patch["poc_start_date"] = data["poc_start_date"]
+            payload["poc_start_date"] = data["poc_start_date"]
+        if data.get("poc_end_date"):
+            payload["poc_end_date_plan"] = data["poc_end_date"]
 
-        poc_end_plan = data.get("poc_end_date_plan") or data.get("poc_end_date_planned")
-        if poc_end_plan:
-            patch["poc_end_date_plan"] = poc_end_plan
+        resp = SESSION.post(
+            f"{PB_BASE}/api/collections/pocs/records",
+            json=payload,
+            timeout=10,
+        )
+        resp.raise_for_status()
 
-        if data.get("poc_end_date_actual"):
-            patch["poc_end_date_actual"] = data["poc_end_date_actual"]
-
-        if partner:
-            patch["partner"] = partner
-
-        # last_daily_update_at immer "now"
-        patch["last_daily_update_at"] = datetime.utcnow().isoformat() + "Z"
-
-        if patch:
-            SESSION.patch(
-                f"{PB_BASE}/api/collections/pocs/records/{poc_id}",
-                json=patch,
-                timeout=10,
-            )
-
-        # --- Use Cases / poc_use_cases -----------------------------------
-        use_cases: List[Dict[str, Any]] = data.get("use_cases", [])
-
-        for uc in use_cases:
-            code = uc["code"]
-            title = uc.get("title")
-            version = int(uc.get("version", 1))
-            product_family = uc.get("product_family")
-            product = uc.get("product")
-            description = uc.get("description")
-            category = uc.get("category")
-            is_customer_prep = uc.get("is_customer_prep")
-            estimate_hours = uc.get("estimate_hours")
-
-            # 1) Katalogeintrag im use_cases-Table updaten
-            uc_id = get_or_create_usecase(
-                code,
-                title=title,
-                version=version,
-                product_family=product_family,
-                product=product,
-                description=description,
-                category=category,
-                is_customer_prep=is_customer_prep,
-                estimate_hours=estimate_hours,
-            )
-
-            # 2) Link POC <-> Use Case
-            puc_id = get_or_create_poc_usecase(poc_id, uc_id)
-
-            # 3) Nur Statusfelder im Link-Record aktualisieren
-            puc_patch: Dict[str, Any] = {
-                "is_active": bool(uc.get("is_active", False)),
-                "is_completed": bool(uc.get("is_completed", False)),
-            }
-
-            if uc.get("is_completed"):
-                puc_patch["completed_at"] = datetime.utcnow().isoformat() + "Z"
-
-            SESSION.patch(
-                f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
-                json=puc_patch,
-                timeout=10,
-            )
-
-        return jsonify({"status": "ok", "poc_uid": poc_uid}), 200
+        logger.info(f"Created new POC: {poc_uid}")
+        
+        response_data = {"status": "ok", "poc_uid": poc_uid, "is_new": True}
+        
+        if user_is_new:
+            response_data["user_created"] = True
+            response_data["user_email"] = sa_email
+            response_data["message"] = f"A password reset email has been sent to {sa_email}"
+        
+        return jsonify(response_data), 200
 
     except requests.HTTPError as e:
-        print("[API] HTTPError:", e.response.text)
+        logger.error(f"HTTPError in register: {e.response.text}")
         return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
     except Exception as e:
-        print("[API] Exception:", repr(e))
+        logger.error(f"Exception in register: {repr(e)}")
+        return jsonify({"error": "internal_error", "details": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Endpoint: POST /api/deregister
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/deregister", methods=["POST"])
+def api_deregister():
+    """
+    Mark a POC as inactive (deregister).
+
+    Expected JSON:
+    {
+      "poc_uid": "POC-ABC123DEF456"
+    }
+    """
+    if not check_api_key():
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "invalid_json"}), 400
+
+    poc_uid = data.get("poc_uid")
+    if not poc_uid:
+        return jsonify({"error": "missing_poc_uid"}), 400
+
+    try:
+        service_login()
+
+        poc = find_poc_by_uid(poc_uid)
+        if not poc:
+            return jsonify({
+                "status": "ok",
+                "poc_uid": poc_uid,
+                "message": "POC not found (already deregistered or never existed)"
+            }), 200
+
+        SESSION.patch(
+            f"{PB_BASE}/api/collections/pocs/records/{poc['id']}",
+            json={
+                "is_active": False,
+                "deregistered_at": datetime.utcnow().isoformat() + "Z"
+            },
+            timeout=10,
+        )
+
+        logger.info(f"Deregistered POC: {poc_uid}")
+        return jsonify({"status": "ok", "poc_uid": poc_uid, "message": "POC deregistered"}), 200
+
+    except requests.HTTPError as e:
+        logger.error(f"HTTPError in deregister: {e.response.text}")
+        return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
+    except Exception as e:
+        logger.error(f"Exception in deregister: {repr(e)}")
+        return jsonify({"error": "internal_error", "details": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Endpoint: POST /api/heartbeat
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/heartbeat", methods=["POST"])
+def api_heartbeat():
+    """
+    Daily heartbeat with use cases including full metadata.
+
+    Expected JSON:
+    {
+      "poc_uid": "POC-ABC123DEF456",
+      "use_cases": [
+        {
+          "code": "machine-identity/dashboard",
+          "is_active": true,
+          "is_completed": false,
+          "order": 5,                              // from config.json useCaseOrder
+          "title": "Dashboard",                    // from YAML: name
+          "version": 1,                            // from YAML: version
+          "author": "",                            // from YAML: author
+          "description": "...",                    // from YAML: description
+          "product": "Certificate Manager SaaS",   // from YAML: product
+          "product_family": "Secrets",             // from YAML: productCategory
+          "category": "Getting Started",           // from YAML: category
+          "estimate_hours": 2,                     // from YAML: estimatedHours
+          "is_customer_prep": false                // from YAML: customerPreparation
+        },
+        ...
+      ]
+    }
+
+    Response:
+    {
+      "status": "ok",
+      "poc_uid": "POC-ABC123DEF456",
+      "use_cases_processed": 30
+    }
+    """
+    if not check_api_key():
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "invalid_json"}), 400
+
+    poc_uid = data.get("poc_uid")
+    if not poc_uid:
+        return jsonify({"error": "missing_poc_uid"}), 400
+
+    use_cases_data = data.get("use_cases")
+    if not use_cases_data or not isinstance(use_cases_data, list):
+        return jsonify({"error": "missing_use_cases", "details": "use_cases array is required"}), 400
+
+    try:
+        service_login()
+
+        poc = find_poc_by_uid(poc_uid)
+        if not poc:
+            return jsonify({"error": "poc_not_found", "details": f"POC {poc_uid} not found"}), 404
+
+        poc_id = poc["id"]
+
+        # Update last_daily_update_at
+        SESSION.patch(
+            f"{PB_BASE}/api/collections/pocs/records/{poc_id}",
+            json={"last_daily_update_at": datetime.utcnow().isoformat() + "Z"},
+            timeout=10,
+        )
+        
+        resp = SESSION.get(
+            f"{PB_BASE}/api/collections/poc_use_cases/records",
+            params={"filter": f'poc="{poc_id}"', "perPage": 500},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        existing_pucs = resp.json().get("items", [])
+        
+        deactivated_count = 0
+        for puc in existing_pucs:
+            if puc.get("is_active"):
+                SESSION.patch(
+                    f"{PB_BASE}/api/collections/poc_use_cases/records/{puc['id']}",
+                    json={"is_active": False},
+                    timeout=10,
+                )
+                deactivated_count += 1
+        
+        logger.info(f"[heartbeat] Deactivated {deactivated_count} existing poc_use_cases for POC {poc_uid}")
+      
+        # Process each use case
+        processed_count = 0
+        
+        for uc_data in use_cases_data:
+            uc_code = uc_data.get("code")
+            if not uc_code:
+                logger.warning(f"[heartbeat] Skipping use case without code")
+                continue
+            
+            # Extract use_case metadata (for use_cases collection)
+            title = uc_data.get("title")
+            version = uc_data.get("version", 1)
+            author = uc_data.get("author")
+            description = uc_data.get("description")
+            product = uc_data.get("product")
+            product_family = uc_data.get("product_family")
+            category = uc_data.get("category")
+            estimate_hours = uc_data.get("estimate_hours")
+            is_customer_prep = uc_data.get("is_customer_prep")
+            
+            # Extract poc_use_case fields
+            order = uc_data.get("order")  # from config.json useCaseOrder
+            is_active = uc_data.get("is_active", True)
+            is_completed = uc_data.get("is_completed", False)
+            
+            # Create/update use_case with all metadata
+            uc_id = get_or_create_usecase(
+                code=uc_code,
+                title=title,
+                version=int(version) if version else 1,
+                product_family=product_family,
+                product=product,
+                category=category,
+                description=description,
+                estimate_hours=int(estimate_hours) if estimate_hours is not None else None,
+                is_customer_prep=is_customer_prep,
+                author=author,
+            )
+            
+            # Create/update poc_use_case link with order
+            get_or_create_poc_usecase(
+                poc_id=poc_id,
+                uc_id=uc_id,
+                order=int(order) if order is not None else None,
+                is_active=is_active,
+                is_completed=is_completed,
+            )
+            
+            processed_count += 1
+        
+        logger.info(f"Heartbeat for POC {poc_uid}: processed {processed_count} use cases")
+        
+        return jsonify({
+            "status": "ok",
+            "poc_uid": poc_uid,
+            "use_cases_processed": processed_count
+        }), 200
+
+    except requests.HTTPError as e:
+        logger.error(f"HTTPError in heartbeat: {e.response.text}")
+        return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
+    except Exception as e:
+        logger.error(f"Exception in heartbeat: {repr(e)}")
         return jsonify({"error": "internal_error", "details": str(e)}), 500
 
 
@@ -465,96 +861,17 @@ def api_daily_update():
 # ---------------------------------------------------------------------------
 
 
-# @app.route("/api/complete_use_case", methods=["POST"])
-# def api_complete_use_case():
-#     """
-#     Mark a single use case as completed for a given POC.
-#     """
-#     if not check_api_key():
-#         return jsonify({"error": "unauthorized"}), 401
-
-#     data = request.get_json(silent=True)
-#     if not data:
-#         return jsonify({"error": "invalid_json"}), 400
-
-#     try:
-#         service_login()
-#         se_email = data["se_email"]
-#         se_id = get_or_create_user_se(se_email)
-
-#         poc_uid = data["poc_uid"]
-#         poc_name = data.get("poc_name", poc_uid)
-#         customer_name = data.get("customer_name")
-#         partner = data.get("partner")
-
-#         poc_id = get_or_create_poc(poc_uid, poc_name, customer_name, se_id, partner=partner)
-
-#         code = data["use_case_code"]
-#         version = int(data.get("version", 1))
-#         product_family = data.get("product_family")
-#         product = data.get("product")
-#         description = data.get("description")
-
-#         uc_id = get_or_create_usecase(
-#             code,
-#             version=version,
-#             product_family=product_family,
-#             product=product,
-#             description=description,
-#         )
-#         puc_id = get_or_create_poc_usecase(poc_id, uc_id)
-
-#         rating = data.get("rating")
-#         text = data.get("text")
-
-#         puc_patch: Dict[str, Any] = {
-#             "is_active": True,
-#             "is_completed": True,
-#             "completed_at": datetime.utcnow().isoformat() + "Z",
-#         }
-#         if rating is not None:
-#             puc_patch["rating"] = int(rating)
-
-#         SESSION.patch(
-#             f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
-#             json=puc_patch,
-#             timeout=10,
-#         )
-
-#         # Optional feedback entry
-#         if text or rating is not None:
-#             SESSION.post(
-#                 f"{PB_BASE}/api/collections/comments/records",
-#                 json={
-#                     "poc": poc_id,
-#                     "use_case": uc_id,
-#                     "author": se_id,
-#                     "kind": "feedback",
-#                     "text": text or "",
-#                     "rating": rating,
-#                 },
-#                 timeout=10,
-#             )
-
-#         return jsonify({
-#             "status": "ok",
-#             "poc_uid": poc_uid,
-#             "use_case_code": code,
-#             "version": version,
-#         }), 200
-
-#     except requests.HTTPError as e:
-#         print("[API] HTTPError:", e.response.text)
-#         return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
-#     except Exception as e:
-#         print("[API] Exception:", repr(e))
-#         return jsonify({"error": "internal_error", "details": str(e)}), 500
-
-@app.route("/api/mark_use_case_completed", methods=["POST"])
-def api_mark_use_case_completed():
+@app.route("/api/complete_use_case", methods=["POST"])
+def api_complete_use_case():
     """
-    Mark a single use case as completed for a given POC.
-    Does NOT touch rating or comments.
+    Toggle completion status for a use case.
+
+    Expected JSON:
+    {
+      "poc_uid": "POC-ABC123DEF456",
+      "use_case_code": "machine-identity/dashboard",
+      "completed": true
+    }
     """
     if not check_api_key():
         return jsonify({"error": "unauthorized"}), 401
@@ -563,171 +880,65 @@ def api_mark_use_case_completed():
     if not data:
         return jsonify({"error": "invalid_json"}), 400
 
-    try:
-        service_login()
+    poc_uid = data.get("poc_uid")
+    use_case_code = data.get("use_case_code")
+    completed = data.get("completed")
 
-        se_email = data["se_email"]
-        se_id = get_or_create_user_se(se_email)
-
-        poc_uid = data["poc_uid"]
-        poc_name = data.get("poc_name", poc_uid)
-        customer_name = data.get("customer_name")
-        partner = data.get("partner")
-
-        poc_id = get_or_create_poc(
-            poc_uid,
-            poc_name,
-            customer_name,
-            se_id,
-            partner=partner,
-        )
-
-        code = data["use_case_code"]
-        version = int(data.get("version", 1))
-        product_family = data.get("product_family")
-        product = data.get("product")
-        description = data.get("description")
-
-        uc_id = get_or_create_usecase(
-            code,
-            version=version,
-            product_family=product_family,
-            product=product,
-            description=description,
-        )
-        puc_id = get_or_create_poc_usecase(poc_id, uc_id)
-
-        puc_patch: Dict[str, Any] = {
-            "is_active": True,
-            "is_completed": True,
-            "completed_at": datetime.utcnow().isoformat() + "Z",
-        }
-
-        SESSION.patch(
-            f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
-            json=puc_patch,
-            timeout=10,
-        )
-
+    if not poc_uid or not use_case_code or completed is None:
         return jsonify({
-            "status": "ok",
-            "poc_uid": poc_uid,
-            "use_case_code": code,
-            "version": version,
-        }), 200
-
-    except requests.HTTPError as e:
-        print("[API] HTTPError:", e.response.text)
-        return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
-    except Exception as e:
-        print("[API] Exception:", repr(e))
-        return jsonify({"error": "internal_error", "details": str(e)}), 500
-
-@app.route("/api/rate_use_case", methods=["POST"])
-def api_rate_use_case():
-    """
-    Set rating (and optional feedback text) for a specific POC/use case.
-
-    - Updates only `rating` on `poc_use_cases`
-    - Optionally creates a `comments` record (kind="feedback")
-    """
-    if not check_api_key():
-        return jsonify({"error": "unauthorized"}), 401
-
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "invalid_json"}), 400
+            "error": "missing_required_fields",
+            "details": "poc_uid, use_case_code, and completed are required"
+        }), 400
 
     try:
         service_login()
 
-        se_email = data["se_email"]
-        se_id = get_or_create_user_se(se_email)
+        poc = find_poc_by_uid(poc_uid)
+        if not poc:
+            return jsonify({"error": "poc_not_found"}), 404
 
-        poc_uid = data["poc_uid"]
-        poc_name = data.get("poc_name", poc_uid)
-        customer_name = data.get("customer_name")
-        partner = data.get("partner")
-
-        poc_id = get_or_create_poc(
-            poc_uid,
-            poc_name,
-            customer_name,
-            se_id,
-            partner=partner,
+        poc_id = poc["id"]
+        uc_id = get_or_create_usecase(use_case_code)
+        
+        get_or_create_poc_usecase(
+            poc_id=poc_id,
+            uc_id=uc_id,
+            is_active=True,
+            is_completed=bool(completed),
         )
 
-        code = data["use_case_code"]
-        version = int(data.get("version", 1))
-        product_family = data.get("product_family")
-        product = data.get("product")
-        description = data.get("description")
-
-        uc_id = get_or_create_usecase(
-            code,
-            version=version,
-            product_family=product_family,
-            product=product,
-            description=description,
-        )
-        puc_id = get_or_create_poc_usecase(poc_id, uc_id)
-
-        rating = data.get("rating")
-        if rating is None:
-            return jsonify({"error": "missing_rating"}), 400
-
-        text = data.get("text", "")
-
-        # Nur Rating anfassen
-        SESSION.patch(
-            f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
-            json={"rating": int(rating)},
-            timeout=10,
-        )
-
-        # Optionaler Kommentar
-        if text:
-            SESSION.post(
-                f"{PB_BASE}/api/collections/comments/records",
-                json={
-                    "poc": poc_id,
-                    "use_case": uc_id,
-                    "author": se_id,
-                    "kind": "feedback",
-                    "text": text,
-                    "rating": int(rating),
-                },
-                timeout=10,
-            )
-
+        logger.info(f"Use case {use_case_code} marked completed={completed} for POC {poc_uid}")
         return jsonify({
             "status": "ok",
             "poc_uid": poc_uid,
-            "use_case_code": code,
-            "version": version,
-            "rating": int(rating),
+            "use_case_code": use_case_code,
+            "completed": bool(completed)
         }), 200
 
     except requests.HTTPError as e:
-        print("[API] HTTPError:", e.response.text)
+        logger.error(f"HTTPError in complete_use_case: {e.response.text}")
         return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
     except Exception as e:
-        print("[API] Exception:", repr(e))
+        logger.error(f"Exception in complete_use_case: {repr(e)}")
         return jsonify({"error": "internal_error", "details": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: POST /api/comment
+# Endpoint: POST /api/rating
 # ---------------------------------------------------------------------------
 
 
-@app.route("/api/comment", methods=["POST"])
-def api_comment():
+@app.route("/api/rating", methods=["POST"])
+def api_rating():
     """
-    Add feedback or a question for a specific POC/use case.
+    Set star rating (1-5) for a use case.
 
-    - Creates a `comments` record linked via `poc_use_case`
-    - Optional rating updates `poc_use_cases.rating` (not stored on comments)
+    Expected JSON:
+    {
+      "poc_uid": "POC-ABC123DEF456",
+      "use_case_code": "machine-identity/dashboard",
+      "rating": 4
+    }
     """
     if not check_api_key():
         return jsonify({"error": "unauthorized"}), 401
@@ -736,84 +947,149 @@ def api_comment():
     if not data:
         return jsonify({"error": "invalid_json"}), 400
 
+    poc_uid = data.get("poc_uid")
+    use_case_code = data.get("use_case_code")
+    rating = data.get("rating")
+
+    if not poc_uid or not use_case_code or rating is None:
+        return jsonify({
+            "error": "missing_required_fields",
+            "details": "poc_uid, use_case_code, and rating are required"
+        }), 400
+
+    try:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            raise ValueError("Rating must be between 1 and 5")
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": "invalid_rating", "details": str(e)}), 400
+
     try:
         service_login()
 
-        se_email = data["se_email"]
-        se_id = get_or_create_user_se(se_email)
+        poc = find_poc_by_uid(poc_uid)
+        if not poc:
+            return jsonify({"error": "poc_not_found"}), 404
 
-        poc_uid = data["poc_uid"]
-        poc_name = data.get("poc_name", poc_uid)
-        customer_name = data.get("customer_name")
-        partner = data.get("partner")
+        poc_id = poc["id"]
+        uc_id = get_or_create_usecase(use_case_code)
+        puc_id = get_or_create_poc_usecase(poc_id=poc_id, uc_id=uc_id)
 
-        poc_id = get_or_create_poc(
-            poc_uid,
-            poc_name,
-            customer_name,
-            se_id,
-            partner=partner,
+        SESSION.patch(
+            f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
+            json={"rating": rating},
+            timeout=10,
         )
 
-        code = data["use_case_code"]
-        version = int(data.get("version", 1))
-        product_family = data.get("product_family")
-        product = data.get("product")
-        description = data.get("description")
+        logger.info(f"Rating {rating} set for {use_case_code} in POC {poc_uid}")
+        return jsonify({
+            "status": "ok",
+            "poc_uid": poc_uid,
+            "use_case_code": use_case_code,
+            "rating": rating
+        }), 200
 
-        uc_id = get_or_create_usecase(
-            code,
-            version=version,
-            product_family=product_family,
-            product=product,
-            description=description,
-        )
+    except requests.HTTPError as e:
+        logger.error(f"HTTPError in rating: {e.response.text}")
+        return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
+    except Exception as e:
+        logger.error(f"Exception in rating: {repr(e)}")
+        return jsonify({"error": "internal_error", "details": str(e)}), 500
 
-        # ensure poc_use_case link exists
-        puc_id = get_or_create_poc_usecase(poc_id, uc_id)
 
-        kind = data.get("kind", "feedback")
-        if kind not in ("feedback", "question"):
-            return jsonify({
-                "error": "invalid_kind",
-                "details": "kind must be 'feedback' or 'question'"
-            }), 400
+# ---------------------------------------------------------------------------
+# Endpoint: POST /api/feedback
+# ---------------------------------------------------------------------------
 
-        rating = data.get("rating")
-        text = data.get("text", "")
 
-        # Optional: Rating auch hier direkt auf poc_use_cases schreiben
-        if rating is not None:
-            SESSION.patch(
-                f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
-                json={"rating": int(rating)},
-                timeout=10,
-            )
+@app.route("/api/feedback", methods=["POST"])
+def api_feedback():
+    """
+    Submit text feedback for a use case.
 
-        payload: Dict[str, Any] = {
+    Expected JSON:
+    {
+      "poc_uid": "POC-ABC123DEF456",
+      "use_case_code": "machine-identity/dashboard",
+      "text": "Great feature!"
+    }
+    """
+    if not check_api_key():
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "invalid_json"}), 400
+
+    poc_uid = data.get("poc_uid")
+    use_case_code = data.get("use_case_code")
+    text = data.get("text", "").strip()
+
+    if not poc_uid or not use_case_code:
+        return jsonify({
+            "error": "missing_required_fields",
+            "details": "poc_uid and use_case_code are required"
+        }), 400
+
+    if not text:
+        return jsonify({"error": "missing_text"}), 400
+
+    try:
+        service_login()
+
+        poc = find_poc_by_uid(poc_uid)
+        if not poc:
+            return jsonify({"error": "poc_not_found"}), 404
+
+        poc_id = poc["id"]
+        se_id = poc.get("se")
+
+        uc_id = get_or_create_usecase(use_case_code)
+        puc_id = get_or_create_poc_usecase(poc_id=poc_id, uc_id=uc_id)
+
+        comment_payload: Dict[str, Any] = {
             "poc": poc_id,
             "poc_use_case": puc_id,
-            "author": se_id,
-            "kind": kind,
+            "kind": "feedback",
             "text": text,
         }
 
+        if se_id:
+            comment_payload["author"] = se_id
+
         resp = SESSION.post(
             f"{PB_BASE}/api/collections/comments/records",
-            json=payload,
+            json=comment_payload,
             timeout=10,
         )
         resp.raise_for_status()
         comment = resp.json()
 
-        return jsonify({"status": "ok", "comment_id": comment["id"]}), 200
+        logger.info(f"Feedback submitted for {use_case_code} in POC {poc_uid}")
+        return jsonify({
+            "status": "ok",
+            "poc_uid": poc_uid,
+            "use_case_code": use_case_code,
+            "comment_id": comment["id"]
+        }), 200
 
     except requests.HTTPError as e:
-        print("[API] HTTPError:", e.response.text)
+        logger.error(f"HTTPError in feedback: {e.response.text}")
         return jsonify({"error": "backend_http_error", "details": e.response.text}), 500
     except Exception as e:
-        print("[API] Exception:", repr(e))
+        logger.error(f"Exception in feedback: {repr(e)}")
         return jsonify({"error": "internal_error", "details": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Health check endpoint
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """Simple health check endpoint."""
+    return jsonify({"status": "ok", "timestamp": datetime.utcnow().isoformat() + "Z"}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -823,25 +1099,20 @@ def api_comment():
 if __name__ == "__main__":
     port = int(os.getenv("API_PORT", "8000"))
 
-    # connectivity / auth check
+    logger.info("=" * 70)
+    logger.info("POC Portal API - VERSION 3.0")
+    logger.info("=" * 70)
+    logger.info(f"  PB_BASE:           {PB_BASE}")
+    logger.info(f"  SERVICE_EMAIL:     {SERVICE_EMAIL}")
+    logger.info(f"  API_PORT:          {port}")
+    logger.info(f"  API_SHARED_SECRET: {'SET' if API_SHARED_SECRET else 'NOT SET'}")
+    logger.info("=" * 70)
+
     try:
         service_login()
-        print(f"[API] Service login OK as {SERVICE_EMAIL}")
-
-        r = SESSION.get(f"{PB_BASE}/api/collections", timeout=10)
-        r.raise_for_status()
-        data = r.json()
-
-        coll_names: List[str] = []
-        if isinstance(data, list):
-            coll_names = [c.get("name", "?") for c in data]
-        elif isinstance(data, dict):
-            items = data.get("items", [])
-            coll_names = [c.get("name", "?") for c in items]
-
-        print(f"[API] PocketBase connectivity OK, collections: {coll_names}")
+        logger.info(f"Service login OK")
     except Exception as e:
-        print("[API] WARNING: PocketBase connectivity check failed:", repr(e))
+        logger.warning(f"PocketBase connectivity check failed: {repr(e)}")
 
-    print(f"[API] Starting POC public API on 0.0.0.0:{port}, PB_BASE={PB_BASE}")
+    logger.info(f"Starting POC public API on 0.0.0.0:{port}")
     app.run(host="0.0.0.0", port=port)

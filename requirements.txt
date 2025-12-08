@@ -1,0 +1,5 @@
+flask
+gunicorn
+python-dotenv
+requests
+# plus whatever else poc_public_api.py uses
