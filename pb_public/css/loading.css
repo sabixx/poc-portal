@@ -1,0 +1,70 @@
+/* Loading Overlay Styles */
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+
+.loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.loading-subtext {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mini loader for filter changes (less intrusive) */
+.loading-overlay.mini {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.loading-overlay.mini .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.loading-overlay.mini .loading-text {
+  font-size: 14px;
+}
+
+.loading-overlay.mini .loading-subtext {
+  display: none;
+}

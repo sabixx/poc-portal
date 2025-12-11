@@ -120,6 +120,13 @@ SES = [
     "andrea.meyer@cyberark.com",
     "lisa.mueller@cyberark.com",
     "thomas.becker@cyberark.com",
+    "nina.schneider@cyberark.com",
+    "felix.wagner@cyberark.com",
+    "sarah.weber@cyberark.com",
+    "sven.fischer@cyberark.com",
+    "daniel.hoffmann@cyberark.com",
+    "maria.rodriguez@cyberark.com",
+    "thomas.becker@cyberark.com",
 ]
 
 CUSTOMERS = [
@@ -374,10 +381,21 @@ def seed_demo_data():
                 # --------------------------------------------------------
                 # Step 2: Send heartbeat with use cases
                 # --------------------------------------------------------
+                # Convert to new API format
+                completed_set = set(use_cases["completed"])
+                use_cases_payload = [
+                    {
+                        "code": code,
+                        "is_active": True,
+                        "is_completed": code in completed_set,
+                        "order": idx + 1,
+                    }
+                    for idx, code in enumerate(use_cases["active"])
+                ]
+
                 heartbeat_payload = {
                     "poc_uid": poc_uid,
-                    "active_use_cases": use_cases["active"],
-                    "completed_use_cases": use_cases["completed"],
+                    "use_cases": use_cases_payload,
                 }
 
                 print(f"[SEED] /api/heartbeat {poc_uid}: {len(use_cases['active'])} active, {len(use_cases['completed'])} completed")

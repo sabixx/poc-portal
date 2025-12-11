@@ -1,74 +1,42 @@
-// overview_stats.js
+// overview_stats.js - Use-case statistics
 import { appState } from "./state.js";
-
-const summaryActive = document.getElementById("summary-active-pocs");
-const summaryAtRisk = document.getElementById("summary-at-risk");
-const summaryCompleted30 = document.getElementById("summary-completed-30d");
-const summaryOpenUCs = document.getElementById("summary-open-ucs");
-const summaryCompletedUCs = document.getElementById("summary-completed-ucs");
+import { categorizePoc } from "./poc_status.js";
+import { getPucForPoc } from "./helpers.js";
 
 const statsTop = document.getElementById("stats-top-rated");
 const statsLow = document.getElementById("stats-low-rated");
 const statsMost = document.getElementById("stats-most-completed");
 const statsNever = document.getElementById("stats-never-completed");
 
-const DAY_MS = 1000 * 60 * 60 * 24;
-
 /**
- * Renders the summary metrics and the use-case stats section
- * based on the current POC filter.
+ * Renders the use-case stats section based on active POCs
  */
-export function renderStats(filteredPocs, asOfDate) {
+export function renderUseCaseStats(filteredPocs, asOfDate) {
   const now = asOfDate || new Date();
 
-  let activeCount = 0;
-  let atRiskCount = 0;
-  let completedLast30 = 0;
-
+  // Get active POC IDs
   const activePocIds = new Set();
 
   filteredPocs.forEach((p) => {
-    const lastStr = p.last_daily_update_at;
-    const last = lastStr ? new Date(lastStr) : null;
-    let diffDays = Infinity;
-
-    if (last && !Number.isNaN(last.getTime())) {
-      diffDays = (now - last) / DAY_MS;
-    }
-
-    if (diffDays < 0) diffDays = 0;
-
-    const isActive = diffDays <= 2;
-
-    if (isActive) {
-      activeCount++;
+    const pocUcs = getPucForPoc(p.id, appState.allPuc) || [];
+    const categorized = categorizePoc(p, pocUcs, now);
+    
+    if (categorized.isActive) {
       activePocIds.add(p.id);
-
-      const risk = p.risk_status || "on_track";
-      if (risk === "at_risk" || risk === "overdue") {
-        atRiskCount++;
-      }
-    } else if (diffDays > 2 && diffDays <= 30) {
-      completedLast30++;
     }
   });
 
-  // use-case stats only for active POCs
+  // Filter use cases to only active POCs
   const pucFiltered = appState.allPuc.filter((puc) =>
     activePocIds.has(puc.poc)
   );
 
-  let openUCs = 0;
-  let completedUCs = 0;
-
+  // Build use case stats
   const byUc = {};
 
   pucFiltered.forEach((puc) => {
     const uc = puc.expand && puc.expand.use_case;
     if (!uc) return;
-
-    if (puc.is_active && !puc.is_completed) openUCs++;
-    if (puc.is_completed) completedUCs++;
 
     const key = `${uc.code}::${uc.version || 1}`;
     if (!byUc[key]) {
@@ -91,12 +59,6 @@ export function renderStats(filteredPocs, asOfDate) {
       bucket.ratings.push(puc.rating);
     }
   });
-
-  if (summaryActive) summaryActive.textContent = activeCount;
-  if (summaryAtRisk) summaryAtRisk.textContent = atRiskCount;
-  if (summaryCompleted30) summaryCompleted30.textContent = completedLast30;
-  if (summaryOpenUCs) summaryOpenUCs.textContent = openUCs;
-  if (summaryCompletedUCs) summaryCompletedUCs.textContent = completedUCs;
 
   const stats = Object.values(byUc).map((uc) => {
     const avg =

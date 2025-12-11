@@ -1,8 +1,9 @@
-// poc_card_active.js - VERSION v8
-// With: customer feedback loading, auto-refresh on ER link, event delegation
+// poc_card_active.js - VERSION v11
+// PERFORMANCE OPTIMIZED: Uses pre-loaded cached data instead of per-POC API calls
 import { appState } from "./state.js";
 import { getPucForPoc, formatDate } from "./helpers.js";
 import { showProductBoardLinkModal, renderProductBoardBadges } from "./productboard.js";
+import { computeStalledEngagement } from "./poc_status.js";
 
 import { 
   computeUseCaseMetrics, 
@@ -11,7 +12,7 @@ import {
   attachMetricsListeners 
 } from "./poc_metrics.js";
 
-console.log('[POC-Card-Active] VERSION 9.0 - Direct fetch for comments');
+console.log('[POC-Card-Active] VERSION 11.0 - Added stalled engagement indicator');
 
 // -----------------------------------------------------------------------------
 // Shared helpers
@@ -42,199 +43,56 @@ function workingDaysBetween(start, end) {
 }
 
 // -----------------------------------------------------------------------------
-// Load comments for POC use cases
+// Load comments for POC use cases - OPTIMIZED VERSION using cached data
 // -----------------------------------------------------------------------------
 
-/**
- * REPLACE the loadCommentsForUseCases function in poc_card_active.js (around lines 47-68)
- * with this version that uses direct fetch() instead of PocketBase SDK
- * 
- * VERSION 9.0 - Direct fetch fix for PocketBase 0.34 compatibility
- */
-
-// -----------------------------------------------------------------------------
-// Load comments for POC use cases - FIXED VERSION using direct fetch
-// -----------------------------------------------------------------------------
-
-async function loadCommentsForUseCases(pb, pocId, pocUseCases) {
-  console.log('[POC-Card-Active] === LOADING COMMENTS (FETCH VERSION) ===');
-  console.log('[POC-Card-Active] POC ID:', pocId);
-  console.log('[POC-Card-Active] POC Use Cases count:', pocUseCases?.length || 0);
+function loadCommentsForUseCasesFromCache(pocId, pocUseCases) {
+  console.log('[POC-Card-Active] Loading comments from cache for POC:', pocId);
 
   if (!pocUseCases || !pocUseCases.length) {
     console.log('[POC-Card-Active] No use cases provided');
     return [];
   }
 
-  const baseUrl = pb?.baseUrl || 'http://172.17.32.15:8090';
+  // Get comments from pre-indexed cache
+  const pocComments = appState.commentsByPoc?.get(pocId) || [];
+  console.log('[POC-Card-Active] Found', pocComments.length, 'cached comments for this POC');
 
-  let headers = { 'Content-Type': 'application/json' };
-  if (pb?.authStore?.token) {
-    headers['Authorization'] = pb.authStore.token;
-  }
-
-  const useCaseIds = pocUseCases.map(puc => puc.id);
-  let comments = [];
-
-  try {
-    // ─────────────────────────────────────────────
-    // Strategy 1: by poc_use_case IDs
-    // ─────────────────────────────────────────────
-    console.log('[POC-Card-Active] Trying to fetch by poc_use_case IDs:', useCaseIds.length, 'IDs');
-
-    const filterParts = useCaseIds.map(id => `poc_use_case = "${id}"`);
-    const filter = filterParts.join(' || ');
-
-    console.log('[POC-Card-Active] Filter (first 200 chars):', filter.substring(0, 200));
-
-    let url = `${baseUrl}/api/collections/comments/records?page=1&perPage=500&filter=${encodeURIComponent(filter)}&sort=-created`;
-
-    let response = await fetch(url, { headers });
-
-    if (response.ok) {
-      const data = await response.json();
-      comments = data.items || [];
-      console.log('[POC-Card-Active] SUCCESS: Loaded', comments.length, 'comments by use case IDs');
-    } else {
-      console.log('[POC-Card-Active] Filter by poc_use_case failed:', response.status);
-
-      // ─────────────────────────────────────────
-      // Strategy 2: by POC ID
-      // ─────────────────────────────────────────
-      console.log('[POC-Card-Active] Trying to fetch by POC ID:', pocId);
-
-      url = `${baseUrl}/api/collections/comments/records?page=1&perPage=500&filter=${encodeURIComponent(`poc = "${pocId}"`)}&sort=-created`;
-
-      response = await fetch(url, { headers });
-
-      if (response.ok) {
-        const data = await response.json();
-        comments = data.items || [];
-        console.log('[POC-Card-Active] SUCCESS: Loaded', comments.length, 'comments by POC ID');
-      } else {
-        console.log('[POC-Card-Active] Filter by POC ID failed:', response.status);
-
-        // ─────────────────────────────────────
-        // Strategy 3: fetch all + client filter
-        // ─────────────────────────────────────
-        console.log('[POC-Card-Active] Trying to fetch all comments...');
-
-        url = `${baseUrl}/api/collections/comments/records?page=1&perPage=500&sort=-created`;
-
-        response = await fetch(url, { headers });
-
-        if (response.ok) {
-          const data = await response.json();
-          const all = data.items || [];
-          console.log('[POC-Card-Active] Fetched', all.length, 'total comments');
-
-          const useCaseIdSet = new Set(useCaseIds);
-          comments = all.filter(comment =>
-            useCaseIdSet.has(comment.poc_use_case) || comment.poc === pocId
-          );
-
-          console.log('[POC-Card-Active] After client-side filtering:', comments.length, 'comments for this POC');
-        } else {
-          console.log('[POC-Card-Active] Failed to fetch all comments:', response.status);
-          comments = [];
-        }
-      }
-    }
-
-    if (!comments.length) {
-      console.log('[POC-Card-Active] No comments found for this POC');
-      return [];
-    }
-
-    // Debug first comment
-    console.log('[POC-Card-Active] First comment:', JSON.stringify(comments[0], null, 2));
-
-    // ─────────────────────────────────────────────
-    // Group comments by poc_use_case
-    // (handles single relation or multi-rel)
-    // ─────────────────────────────────────────────
-    const commentsByPuc = {};
-    const useCaseIdSet = new Set(useCaseIds);
-
-    comments.forEach(comment => {
-      const raw = comment.poc_use_case;
-
-      if (Array.isArray(raw)) {
-        raw.forEach(id => {
-          if (!id || !useCaseIdSet.has(id)) return;
-          if (!commentsByPuc[id]) commentsByPuc[id] = [];
-          commentsByPuc[id].push(comment);
-          console.log(
-            '[POC-Card-Active] Comment for PUC (array):',
-            id,
-            '- text:',
-            comment.text?.substring(0, 40)
-          );
-        });
-      } else if (raw && useCaseIdSet.has(raw)) {
-        if (!commentsByPuc[raw]) commentsByPuc[raw] = [];
-        commentsByPuc[raw].push(comment);
-        console.log(
-          '[POC-Card-Active] Comment for PUC (single):',
-          raw,
-          '- text:',
-          comment.text?.substring(0, 40)
-        );
-      } else if (!raw && comment.poc === pocId) {
-        // POC-level comments – optional: could be stored under a special key
-        console.log('[POC-Card-Active] Comment is POC-level only:', comment.id);
-      } else {
-        // Not relevant for these use cases
-      }
-    });
-
-    console.log(
-      '[POC-Card-Active] Grouped comments by PUC IDs:',
-      Object.keys(commentsByPuc)
-    );
-
-    // ─────────────────────────────────────────────
-    // Attach comments to the use cases
-    // ─────────────────────────────────────────────
-    let attachedCount = 0;
-
-    pocUseCases.forEach(puc => {
-      const pucComments = commentsByPuc[puc.id] || [];
-      if (!puc.expand) puc.expand = {};
-      puc.expand.comments = pucComments;
-
-      if (pucComments.length > 0) {
-        attachedCount++;
-
-        // Comments are sorted -created, so index 0 is newest
-        const feedbackComment = pucComments.find(c => c.kind === 'feedback');
-        const latestComment = feedbackComment || pucComments[0];
-
-        puc.last_comment_text = latestComment?.text || '';
-
-        console.log(
-          '[POC-Card-Active] ✓ Attached',
-          pucComments.length,
-          'comments to:',
-          puc.expand?.use_case?.title || puc.id,
-          '- Text:',
-          (puc.last_comment_text || '').substring(0, 30)
-        );
-      }
-    });
-
-    console.log(
-      '[POC-Card-Active] === COMMENTS LOADED ===',
-      attachedCount,
-      'use cases have comments'
-    );
-
-    return comments;
-
-  } catch (error) {
-    console.error('[POC-Card-Active] Error loading comments:', error);
+  if (pocComments.length === 0) {
     return [];
   }
+
+  // Attach comments to use cases
+  let attachedCount = 0;
+  const useCaseIdSet = new Set(pocUseCases.map(puc => puc.id));
+
+  pocUseCases.forEach(puc => {
+    // Get comments for this specific use case from cache
+    const pucComments = appState.commentsByPuc?.get(puc.id) || [];
+    
+    if (!puc.expand) puc.expand = {};
+    puc.expand.comments = pucComments;
+
+    if (pucComments.length > 0) {
+      attachedCount++;
+
+      // Find feedback comment or use latest
+      const feedbackComment = pucComments.find(c => c.kind === 'feedback');
+      const latestComment = feedbackComment || pucComments[0];
+      puc.last_comment_text = latestComment?.text || '';
+    }
+  });
+
+  console.log('[POC-Card-Active] Attached comments to', attachedCount, 'use cases (from cache)');
+  return pocComments;
+}
+
+// -----------------------------------------------------------------------------
+// Get feature requests from cache
+// -----------------------------------------------------------------------------
+
+function getFeatureRequestsFromCache(pocId) {
+  return appState.featureRequestsByPoc?.get(pocId) || [];
 }
 
 // -----------------------------------------------------------------------------
@@ -393,7 +251,7 @@ function computePocStatus(p, pocUcs, prepInfo) {
 }
 
 // -----------------------------------------------------------------------------
-// Main card renderer - COMBINED Use Cases + Feature Requests
+// Main card renderer - PERFORMANCE OPTIMIZED
 // -----------------------------------------------------------------------------
 
 export async function renderActivePocCard(p) {
@@ -407,18 +265,12 @@ export async function renderActivePocCard(p) {
   card.className = "poc-card poc-card-active";
   card.dataset.pocId = p.id;
 
-  // ---- LOAD COMMENTS ----
-  console.log('[POC-Card-Active] Checking appState.pb:', !!appState.pb);
-  if (appState.pb) {
-    console.log('[POC-Card-Active] Calling loadCommentsForUseCases...');
-    await loadCommentsForUseCases(appState.pb, p.id, pocUcs);
-    console.log('[POC-Card-Active] loadCommentsForUseCases completed');
-  } else {
-    console.log('[POC-Card-Active] WARNING: appState.pb is not available!');
-  }
+  // ---- LOAD COMMENTS FROM CACHE (NO API CALL!) ----
+  loadCommentsForUseCasesFromCache(p.id, pocUcs);
 
   const prepInfo = computePrepReadiness(p, pocUcs);
   const hasCustomerPrep = prepInfo.label !== "none";
+  const stalledInfo = computeStalledEngagement(p, pocUcs, getAsOfDate());
   const aebValue = p.aeb || p.AEB || "";
   const pocEndDate = p.poc_end_date_plan || p.poc_end_date;
   const customerName = p.customer_name || "Unknown Customer";
@@ -433,23 +285,9 @@ export async function renderActivePocCard(p) {
   const pbLinks = p.productboard_links || [];
   const pbBadgesHtml = renderProductBoardBadges(pbLinks);
 
-  // ---- Feature requests for this POC ----
-  let featureRequests = [];
-
-  try {
-    if (appState.pb) {
-      featureRequests = await appState.pb
-        .collection('poc_feature_requests')
-        .getFullList({
-          filter: `poc = "${p.id}"`,
-          expand: 'feature_request,use_case',
-          $autoCancel: false,
-        });
-      console.log('[POC-Card-Active] Loaded', featureRequests.length, 'feature requests');
-    }
-  } catch (error) {
-    console.error('[POC-Card-Active] Failed to load feature requests:', error);
-  }
+  // ---- Feature requests FROM CACHE (NO API CALL!) ----
+  const featureRequests = getFeatureRequestsFromCache(p.id);
+  console.log('[POC-Card-Active] Loaded', featureRequests.length, 'feature requests from cache');
 
   // Get ER count for the button
   const erCount = featureRequests.length;
@@ -481,6 +319,7 @@ export async function renderActivePocCard(p) {
           </div>
           
           <div class="poc-meta-row">
+            ${p.product ? `<span class="poc-meta-item poc-product-tag"><strong>Product:</strong> ${p.product}</span>` : ""}
             ${p.partner ? `<span class="poc-meta-item"><strong>Partner:</strong> ${p.partner}</span>` : ""}
             <span class="poc-meta-item poc-aeb-editable">
               <strong>AEB:</strong> 
@@ -504,6 +343,15 @@ export async function renderActivePocCard(p) {
               </div>
             </div>
           ` : ""}
+          
+          ${stalledInfo.isStalled ? `
+            <div class="poc-prep-banner prep-banner prep-warning">
+              <span class="stalled-banner-icon">⚠️</span>
+              <div class="stalled-banner-content">
+                <span class="stalled-banner-label">No engagement for ${stalledInfo.workdaysSinceActivity} workdays</span>
+              </div>
+            </div>
+          ` : ""}
         </div>
         
         <div class="poc-header-dates-compact">
@@ -524,11 +372,11 @@ export async function renderActivePocCard(p) {
     </div>
   `;
 
-  // Create refresh function for this card
+  // Create refresh function for this card (for when new ERs are linked)
   const refreshCard = async () => {
     console.log('[POC-Card-Active] Refreshing card for POC:', p.id);
     try {
-      // Re-fetch feature requests
+      // Re-fetch feature requests for this specific POC
       const newFeatureRequests = await appState.pb
         .collection('poc_feature_requests')
         .getFullList({
@@ -537,8 +385,8 @@ export async function renderActivePocCard(p) {
           $autoCancel: false,
         });
       
-      // Re-fetch comments
-      await loadCommentsForUseCases(appState.pb, p.id, pocUcs);
+      // Update cache
+      appState.featureRequestsByPoc.set(p.id, newFeatureRequests);
       
       // Re-render the details section
       const detailsContainer = card.querySelector('.poc-details');

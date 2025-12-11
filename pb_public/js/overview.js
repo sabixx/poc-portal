@@ -1,58 +1,38 @@
-// overview.js
+// overview.js - Main overview rendering with dashboard and filters
 import { appState, saveSelectedSe } from "./state.js";
 import { userDisplayLabel, getPucForPoc } from "./helpers.js";
 import { renderActivePocCard } from "./poc_card_active.js";
 import { renderClosedPocCard } from "./poc_card_closed.js";
-import { renderStats } from "./overview_stats.js";
+import { categorizePoc } from "./poc_status.js";
+import { renderDashboard } from "./dashboard.js";
+import { 
+  renderFilterBar, 
+  extractFilterOptions, 
+  applyFilters, 
+  setFilterChangeCallback,
+  loadFilterState,
+  loadManagerSeMapping,
+  updatePocCountIndicator,
+  getViewCategory
+} from "./filters.js";
+import { renderUseCaseStats } from "./overview_stats.js";
+import { showLoading, hideLoading } from "./loading.js";
 
-
-// DOM refs
-const seFiltersContainer = document.getElementById("se-filters");
-const activePocsContainer = document.getElementById("active-pocs");
-const closedPocsContainer = document.getElementById("closed-pocs");
-const asOfInput = document.getElementById("as-of-date");
-const btnSeAll = document.getElementById("se-select-all");
-const btnSeNone = document.getElementById("se-select-none");
-const btnAsOfApply = document.getElementById("as-of-apply");
-const toggleOldPocs = document.getElementById("toggle-old-pocs");
+console.log("[Overview] VERSION 3.0 - View category based rendering");
 
 // ===== init ==========================================================
 
 export function initOverview() {
-  if (btnSeAll) {
-    btnSeAll.addEventListener("click", () => {
-      const visibleSEs = buildVisibleSEs();
-      appState.selectedSeIds = new Set(visibleSEs.map((u) => u.id));
-      saveSelectedSe();
-      renderSeFilters(visibleSEs);
-      renderMainView();
-    });
-  }
-
-  if (btnSeNone) {
-    btnSeNone.addEventListener("click", () => {
-      appState.selectedSeIds = new Set();
-      saveSelectedSe();
-      renderSeFilters(buildVisibleSEs());
-      renderMainView();
-    });
-  }
-
-  if (btnAsOfApply) {
-    btnAsOfApply.addEventListener("click", () => {
-      renderMainView();
-    });
-  }
-
-  if (toggleOldPocs) {
-    toggleOldPocs.addEventListener("change", () => {
-      appState.showOldPocs = toggleOldPocs.checked;
-      renderMainView();
-    });
-  }
+  // Set up filter change callback with loading indicator
+  setFilterChangeCallback(async () => {
+    showLoading("Updating...", "", true); // mini loader
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await renderMainView();
+    hideLoading();
+  });
 }
 
-// ===== SE Filters ====================================================
+// ===== Build visible SEs (for backwards compatibility) ===============
 
 export function buildVisibleSEs() {
   const seIdSet = new Set(appState.allPocs.map((p) => p.se).filter(Boolean));
@@ -61,46 +41,30 @@ export function buildVisibleSEs() {
   );
 }
 
-export function renderSeFilters(visibleSEs) {
-  seFiltersContainer.innerHTML = "";
-  if (!visibleSEs.length) {
-    seFiltersContainer.textContent = "No SEs for current filters.";
-    return;
-  }
+// ===== Initialize filters after login ================================
 
-  visibleSEs.forEach((se) => {
-    const label = document.createElement("label");
-    label.className = "filter-se-item";
+export async function initializeFilters() {
+  const filterContainer = document.getElementById("filter-section");
+  if (!filterContainer) return;
 
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.value = se.id;
-    cb.checked =
-      appState.selectedSeIds.size === 0 ||
-      appState.selectedSeIds.has(se.id);
+  // Load manager-SE mapping (determines which SEs the user can see)
+  await loadManagerSeMapping(appState.pb, appState.currentUser);
 
-    cb.addEventListener("change", () => {
-      if (cb.checked) appState.selectedSeIds.add(se.id);
-      else appState.selectedSeIds.delete(se.id);
-      saveSelectedSe();
-      renderMainView();
-    });
+  // Load saved filter state
+  loadFilterState(appState.currentUser);
 
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(userDisplayLabel(se)));
-    seFiltersContainer.appendChild(label);
-  });
+  // Extract filter options (respects manager-SE mapping)
+  const options = extractFilterOptions(appState.allPocs, appState.allUsers, appState.currentUser);
 
-  // If nothing selected -> select all visible
-  if (appState.selectedSeIds.size === 0) {
-    visibleSEs.forEach((u) => appState.selectedSeIds.add(u.id));
-    saveSelectedSe();
-    Array.from(
-      seFiltersContainer.querySelectorAll("input[type=checkbox]")
-    ).forEach((cb) => {
-      cb.checked = true;
-    });
-  }
+  // Render filter bar
+  renderFilterBar(filterContainer, options, appState.currentUser);
+}
+
+// ===== SE Filters (legacy - kept for compatibility) ==================
+
+export async function renderSeFilters(visibleSEs) {
+  // Initialize the new filter system instead
+  await initializeFilters();
 }
 
 // ===== main overview render =========================================
@@ -109,105 +73,90 @@ export async function renderMainView() {
   const portalSection = document.getElementById("portal-section");
   if (!portalSection) return;
 
-  const filtered = appState.allPocs.filter((p) =>
-    appState.selectedSeIds.size === 0
-      ? true
-      : appState.selectedSeIds.has(p.se)
-  );
+  console.log("[POC-PORTAL] renderMainView called");
 
-  const asOfStr = asOfInput ? asOfInput.value : "";
-  const asOfDate = asOfStr ? new Date(asOfStr) : new Date();
-
-  // 🔹 make as-of date available to cards
+  // Get as-of date (default to now)
+  const asOfDate = appState.asOfDate || new Date();
   appState.asOfDate = asOfDate;
 
-  await renderStats(filtered, asOfDate);
-  await renderPocCards(filtered, asOfDate);
+  // Build POC use case map for ALL POCs (needed for dashboard counts)
+  const allPocUseCasesMap = new Map();
+  appState.allPocs.forEach(p => {
+    allPocUseCasesMap.set(p.id, getPucForPoc(p.id, appState.allPuc) || []);
+  });
+
+  // Apply filters (pass the map and date for status filtering)
+  const filteredPocs = applyFilters(appState.allPocs, appState.allUsers, allPocUseCasesMap, asOfDate);
+  
+  console.log("[POC-PORTAL] Filtered POCs:", filteredPocs.length, "of", appState.allPocs.length);
+
+  // Update POC count indicator
+  updatePocCountIndicator(filteredPocs.length, appState.allPocs.length);
+
+  // Build filtered POC use case map
+  const filteredPocUseCasesMap = new Map();
+  filteredPocs.forEach(p => {
+    filteredPocUseCasesMap.set(p.id, allPocUseCasesMap.get(p.id) || []);
+  });
+
+  // Render dashboard with FILTERED data + total count
+  renderDashboard(filteredPocs, appState.allPocs, filteredPocUseCasesMap, asOfDate);
+
+  // Render use case stats
+  renderUseCaseStats(filteredPocs, asOfDate);
+
+  // Render POC cards
+  await renderPocCards(filteredPocs, asOfDate);
 }
 
 // ===== POC grouping & card rendering ================================
 
 async function renderPocCards(filteredPocs, asOfDate) {
+  const viewCategory = getViewCategory();
+  
   console.log("[POC-PORTAL] renderPocCards called", {
     filteredCount: filteredPocs?.length,
+    viewCategory,
     asOfDate,
-    showOldPocs: appState.showOldPocs,
   });
 
+  // Get POC container
+  const pocsContainer = document.getElementById("pocs-container");
+  
   if (!Array.isArray(filteredPocs)) {
     console.error("[POC-PORTAL] filteredPocs is not an array:", filteredPocs);
     return;
   }
 
-  activePocsContainer.innerHTML = "";
-  closedPocsContainer.innerHTML = "";
+  if (pocsContainer) {
+    pocsContainer.innerHTML = "";
+  } else {
+    console.warn("[POC-PORTAL] pocs-container not found");
+    return;
+  }
 
-  const active = [];
-  const closed = [];
+  // Group POCs by SE
+  const groups = groupBySe(filteredPocs);
+  
+  console.log("[POC-PORTAL] groups:", groups.length);
 
-  filteredPocs.forEach((p) => {
-    // --- last update age in days ---
-    const lastStr = p.last_daily_update_at;
-    const last = lastStr ? new Date(lastStr) : null;
-    let diffDays = Infinity;
-
-    if (last && !Number.isNaN(last.getTime())) {
-      diffDays = (asOfDate - last) / (1000 * 60 * 60 * 24);
-    }
-    if (diffDays < 0) diffDays = 0;
-
-    // --- use-case completion status ---
-    const pocUcs = getPucForPoc(p.id, appState.allPuc) || [];
-
-    let totalUc = 0;
-    let completedUc = 0;
-
-    pocUcs.forEach((puc) => {
-      const uc = puc.expand && puc.expand.use_case;
-      if (!uc) return;
-      if (!puc.is_active && !puc.is_completed) return;
-
-      totalUc++;
-      if (puc.is_completed) completedUc++;
-    });
-
-    const allUseCasesCompleted = totalUc > 0 && completedUc === totalUc;
-
-    // --- final active/closed decision ---
-    const isActive = !allUseCasesCompleted && diffDays <= 2;
-
-    if (isActive) {
-      active.push(p);
-    } else {
-      closed.push(p);
-    }
-  });
-
-  console.log("[POC-PORTAL] split POCs", {
-    active: active.length,
-    closed: closed.length,
-  });
-
-  const visibleClosed = closed.filter((p) => {
-    if (p.is_completed && !appState.showOldPocs) return false;
-    return true;
-  });
-
-  console.log("[POC-PORTAL] visibleClosed", visibleClosed.length);
-
-  const activeGroups = groupBySe(active);
-  const closedGroups = groupBySe(visibleClosed);
-
-  console.log("[POC-PORTAL] groups", {
-    activeGroups: activeGroups.length,
-    closedGroups: closedGroups.length,
-  });
-
-  await renderPocGroupList(activeGroups, activePocsContainer, renderActivePocCard);
-  await renderPocGroupList(closedGroups, closedPocsContainer, renderClosedPocCard);
+  // Choose renderer based on view category
+  const cardRenderer = viewCategory === 'active' ? renderActivePocCard : renderClosedPocCard;
+  
+  await renderPocGroupList(groups, pocsContainer, cardRenderer);
+  
+  // Show empty state if no POCs
+  if (filteredPocs.length === 0) {
+    pocsContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-text">No POCs found</div>
+        <div class="empty-state-hint">Try adjusting your filters or view category</div>
+      </div>
+    `;
+  }
 }
 
-// ✅ FIXED: This function now properly handles async card rendering
 async function renderPocGroupList(groups, container, cardRenderer) {
   for (const group of groups) {
     const block = document.createElement("div");
@@ -221,7 +170,6 @@ async function renderPocGroupList(groups, container, cardRenderer) {
     const list = document.createElement("div");
     list.className = "poc-group-grid";
 
-    // ✅ Changed to for...of and added await
     for (const p of group.items) {
       const card = await cardRenderer(p);
       list.appendChild(card);

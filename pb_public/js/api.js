@@ -17,11 +17,13 @@ export async function loginUser(pb, email, password) {
 }
 
 /**
- * Load all relevant data and apply role-based visibility for POCs.
+ * Load all relevant data.
+ * NOTE: Everyone gets ALL POCs - filtering is handled by the frontend filters.
+ * Default filter selection is role-based (SE sees own POCs, Manager sees mapped SEs).
  *
  * Returns:
  *  - users: all visible users
- *  - pocs:  filtered list based on role
+ *  - pocs:  ALL pocs (unfiltered)
  *  - puc:   all poc_use_cases
  *  - roleText: text for the UI hint
  */
@@ -33,8 +35,8 @@ export async function fetchAllData(pb, currentUser) {
     sort: "email",
   });
 
-  // pocs (full list first)
-  let pocs = await pb.collection("pocs").getFullList({
+  // pocs - everyone gets ALL POCs (frontend filters handle display)
+  const pocs = await pb.collection("pocs").getFullList({
     expand: "se",
     sort: "customer_name",
   });
@@ -42,17 +44,11 @@ export async function fetchAllData(pb, currentUser) {
   let roleText = "";
 
   if (currentUser.role === "se") {
-    pocs = pocs.filter((p) => p.se === currentUser.id);
-    roleText = "Role: SE – you only see your own POCs.";
+    roleText = "Role: SE – your POCs are shown by default (use filters to see others).";
   } else if (currentUser.role === "ae") {
-    const map = await pb.collection("ae_se_map").getFullList({
-      filter: `ae="${currentUser.id}"`,
-    });
-    const seIds = new Set(map.map((m) => m.se));
-    pocs = pocs.filter((p) => seIds.has(p.se));
-    roleText = "Role: AE – you see POCs of your mapped SEs.";
+    roleText = "Role: AE – your mapped SEs' POCs are shown by default.";
   } else if (currentUser.role === "manager") {
-    roleText = "Role: Manager – you see all POCs.";
+    roleText = "Role: Manager – your team's POCs are shown by default.";
   } else {
     roleText = `Role: ${currentUser.role || "unknown"}`;
   }
@@ -72,6 +68,66 @@ export async function fetchAllData(pb, currentUser) {
   );
 
   return { users, pocs, puc, roleText };
+}
+
+/**
+ * Batch fetch ALL comments at once (instead of per-POC)
+ * This dramatically improves performance
+ */
+export async function fetchAllComments(pb) {
+  console.log("[POC-PORTAL] Fetching all comments...");
+  try {
+    const comments = await pb.collection("comments").getFullList({
+      sort: "-created",
+      $autoCancel: false
+    });
+    console.log("[POC-PORTAL] Loaded", comments.length, "comments total");
+    return comments;
+  } catch (error) {
+    console.error("[POC-PORTAL] Failed to fetch comments:", error);
+    return [];
+  }
+}
+
+/**
+ * Batch fetch ALL feature requests at once (instead of per-POC)
+ */
+export async function fetchAllFeatureRequests(pb) {
+  console.log("[POC-PORTAL] Fetching all feature requests...");
+  try {
+    // First try without expand to see if collection exists
+    const frs = await pb.collection("poc_feature_requests").getFullList({
+      sort: "-created",
+      $autoCancel: false
+    });
+    
+    // If we got results, try to expand feature_request relation
+    if (frs.length > 0) {
+      try {
+        const frsWithExpand = await pb.collection("poc_feature_requests").getFullList({
+          expand: "feature_request",
+          sort: "-created",
+          $autoCancel: false
+        });
+        console.log("[POC-PORTAL] Loaded", frsWithExpand.length, "feature requests total (with expand)");
+        return frsWithExpand;
+      } catch (expandError) {
+        console.log("[POC-PORTAL] Could not expand feature_request, using basic records");
+        return frs;
+      }
+    }
+    
+    console.log("[POC-PORTAL] Loaded", frs.length, "feature requests total");
+    return frs;
+  } catch (error) {
+    // Collection might not exist or be empty - that's OK
+    if (error.status === 400 || error.status === 404) {
+      console.log("[POC-PORTAL] Feature requests collection not available or empty");
+      return [];
+    }
+    console.error("[POC-PORTAL] Failed to fetch feature requests:", error);
+    return [];
+  }
 }
 
 // productboard/api.js

@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>POC Portal – PocketBase</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="timeframe_selector.css">
-  <link rel="stylesheet" href="productboard_combined.css">
-    <!-- <link rel="stylesheet" href="inline_ers.css"> -->
+  <title>POC Insights – PocketBase</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard_filters.css">
+  <link rel="stylesheet" href="css/timeframe_selector.css">
+  <link rel="stylesheet" href="css/productboard_combined.css">
+  <link rel="stylesheet" href="css/loading.css">
 
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -18,10 +19,12 @@
 <body>
   <header class="app-header">
     <div>
-      <h1>POC Portal</h1>
+      <h1>POC Insights</h1>
       <div class="hint" id="user-info">Not signed in</div>
     </div>
     <div class="header-actions">
+      <button id="settings-btn" type="button" class="header-btn hidden" title="Settings">⚙️</button>
+      <button id="logout-btn" type="button" class="header-btn hidden" title="Sign out">🚪</button>
       <button id="theme-toggle" type="button">🌓</button>
     </div>
   </header>
@@ -46,69 +49,24 @@
 
     <!-- Main overview -->
     <section id="portal-section" class="hidden">
-      <!-- summary metrics -->
-      <section class="summary-section">
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Active POCs</div>
-            <div id="summary-active-pocs" class="summary-value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">POCs at risk</div>
-            <div id="summary-at-risk" class="summary-value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">POCs completed last 30 days</div>
-            <div id="summary-completed-30d" class="summary-value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Open use cases (active POCs)</div>
-            <div id="summary-open-ucs" class="summary-value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Completed use cases (active POCs)</div>
-            <div id="summary-completed-ucs" class="summary-value">0</div>
-          </div>
-        </div>
+      <!-- Dashboard with View Tabs -->
+      <section id="dashboard-section">
+        <!-- Dashboard content rendered by JS -->
       </section>
 
-      <!-- Filter -->
-      <section class="filter-section">
-        <h2>Filter</h2>
-        <div class="filter-row">
-          <strong>SE selection:</strong>
-          <div id="se-filters" class="filter-se-list"></div>
-          <button id="se-select-all" type="button">All</button>
-          <button id="se-select-none" type="button">None</button>
-          <label class="filter-asof">
-            As-of date:
-            <input type="date" id="as-of-date">
-          </label>
-          <button id="as-of-apply" type="button">Apply</button>
-        </div>
-        <div class="hint" id="role-hint"></div>
+      <!-- Filters -->
+      <section id="filter-section">
+        <!-- Filter bar rendered by JS -->
       </section>
 
-      <!-- POC overview -->
-      <section>
-        <h2>Active POCs</h2>
-        <div id="active-pocs" class="poc-grid"></div>
+      <!-- POC List (single container) -->
+      <section id="pocs-section">
+        <div id="pocs-container" class="poc-grid"></div>
       </section>
 
-      <section>
-        <h2>
-          In-review / Completed POCs
-          <label style="margin-left: 1rem; font-size: 0.85rem;">
-            <input type="checkbox" id="toggle-old-pocs">
-            Show completed POCs
-          </label>
-        </h2>
-        <div id="closed-pocs" class="poc-grid"></div>
-      </section>
-
-      <!-- Stats -->
+      <!-- Stats (Use-case) -->
       <section class="stats-section">
-        <h2>Use-case stats</h2>
+        <h2>Use-case Stats</h2>
         <div class="stats-grid">
           <div class="stats-card">
             <h3>Top rated Use Cases</h3>
@@ -176,7 +134,7 @@
   </main>
 
   <!-- Modules -->
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/theme.js?v=2"></script>
+  <script type="module" src="js/main.js?v=2"></script>
 </body>
 </html>

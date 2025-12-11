@@ -1,16 +1,18 @@
-// poc_card_closed.js - IMPROVED VERSION v3 with common metrics module and Feature Requests
+// poc_card_closed.js - VERSION v4 PERFORMANCE OPTIMIZED
+// Uses pre-loaded cached data instead of per-POC API calls
 import { appState } from "./state.js";
 import { formatDate, getPucForPoc } from "./helpers.js";
 import { showPocDetail } from "./poc_detail.js";
 import { renderProductBoardBadges, showProductBoardLinkModal } from "./productboard.js";
 import { showFeatureRequestModal } from "./feature_request_modal.js";
-import { renderFeatureRequestSummary } from "./feature_request_table.js";
 import { 
   computeUseCaseMetrics, 
   renderPocMetrics, 
   renderUseCaseDetails, 
   attachMetricsListeners 
 } from "./poc_metrics.js";
+
+console.log('[POC-Card-Closed] VERSION 4.0 - Performance optimized with cached data');
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 const HOURS_PER_DAY = 8;
@@ -36,6 +38,14 @@ function workingDaysBetween(start, end) {
     s.setDate(s.getDate() + 1);
   }
   return days;
+}
+
+// ---------------------------------------------------------------------
+// Get feature requests from cache
+// ---------------------------------------------------------------------
+
+function getFeatureRequestsFromCache(pocId) {
+  return appState.featureRequestsByPoc?.get(pocId) || [];
 }
 
 // ---------------------------------------------------------------------
@@ -85,7 +95,7 @@ function technicalOutcomeClass(value) {
 }
 
 // ---------------------------------------------------------------------
-// Render ONE closed / in-review POC card - IMPROVED LAYOUT v3 with FRs
+// Render ONE closed / in-review POC card - PERFORMANCE OPTIMIZED
 // ---------------------------------------------------------------------
 
 export async function renderClosedPocCard(p) {
@@ -202,6 +212,7 @@ export async function renderClosedPocCard(p) {
         </div>
         
         <div class="poc-meta-row">
+          ${p.product ? `<span class="poc-meta-item poc-product-tag"><strong>Product:</strong> ${p.product}</span>` : ""}
           ${p.partner ? `<span class="poc-meta-item"><strong>Partner:</strong> ${p.partner}</span>` : ""}
           <span class="poc-meta-item poc-aeb-editable">
             <strong>AEB:</strong> 
@@ -233,15 +244,20 @@ export async function renderClosedPocCard(p) {
     totalUc,
     avgRating,
     feedbackCount,
-    showProductBoardBtn: false // Closed cards don't show PB button in metrics (it's in outcome section)
+    showProductBoardBtn: false
   });
 
-  // Get feature request summary
+  // Get feature request summary FROM CACHE (NO API CALL!)
+  const featureRequests = getFeatureRequestsFromCache(p.id);
   let frSummaryHtml = '';
-  try {
-    frSummaryHtml = await renderFeatureRequestSummary(p.id);
-  } catch (error) {
-    console.error('[ClosedPOC] Failed to load FR summary:', error);
+  if (featureRequests.length > 0) {
+    // Render sync version using cached data
+    frSummaryHtml = `
+      <div class="fr-summary fr-summary-compact" style="cursor: pointer;">
+        <span class="fr-summary-icon">🔗</span>
+        <span class="fr-summary-count">${featureRequests.length} Feature Request${featureRequests.length !== 1 ? 's' : ''}</span>
+      </div>
+    `;
   }
 
   // ----- OUTCOME block (edit vs read-only) --------------------------
@@ -343,7 +359,6 @@ export async function renderClosedPocCard(p) {
   // Feature Request button (POC level) - make summary clickable
   const frBtn = card.querySelector('.fr-summary');
   if (frBtn) {
-    frBtn.style.cursor = 'pointer';
     frBtn.addEventListener('click', (evt) => {
       evt.stopPropagation();
       showFeatureRequestModal({ pocId: p.id });
@@ -489,7 +504,6 @@ export async function renderClosedPocCard(p) {
     if (pbBtn) {
       pbBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
-                
         showProductBoardLinkModal(appState.pb, p.id, null);
       });
     }
