@@ -30,10 +30,14 @@
   </header>
 
   <main class="app-main">
-    <!-- Login -->
+    <!-- Login/Signup -->
     <section id="login-section">
-      <h2>Login</h2>
+      <h2 id="auth-title">Login</h2>
       <form id="login-form">
+        <label id="name-label" class="hidden">
+          Name:
+          <input type="text" id="login-name">
+        </label>
         <label>
           E-mail:
           <input type="email" id="login-email" required>
@@ -42,9 +46,18 @@
           Password:
           <input type="password" id="login-password" required>
         </label>
-        <button type="submit">Sign in</button>
+        <label id="confirm-password-label" class="hidden">
+          Confirm Password:
+          <input type="password" id="login-password-confirm">
+        </label>
+        <button type="submit" id="auth-submit-btn">Sign in</button>
       </form>
       <div id="login-error" class="error"></div>
+      <div class="auth-toggle">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <button type="button" id="auth-toggle-btn" class="link-btn">Sign up</button>
+      </div>
+      <div class="version-hint">v0.0.1</div>
     </section>
 
     <!-- Main overview -->

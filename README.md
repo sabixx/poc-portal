@@ -38,7 +38,17 @@ A status overview of all POCs
 
 # TODO
 
+update users API rules when creatig the database. 
+@request.data.email ~ '%@venafi.com' || 
+@request.data.email ~ '%@cyberark.com' || 
+@request.data.email ~ '%@paloalto.com' || 
+@request.data.email ~ '%@paloaltonetworks.com'
+
+set default role in users to se
+
 - track competitors
+
+- add multi language
 
 - remove hard coded key for testing from the public api..
 

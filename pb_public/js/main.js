@@ -14,9 +14,11 @@ import { renderUseCaseStats } from "./overview_stats.js";
 import { initLoadingOverlay, showLoading, hideLoading } from "./loading.js";
 import { showSettingsModal } from "./settings.js";
 
-console.log("[POC-PORTAL] main.js VERSION 2.0 - Session persistence + Settings");
+console.log("[POC-PORTAL] main.js VERSION 0.0.4 - Session persistence + Settings");
 
-const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
+//const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
+//const PB_BASE = "https://pocinsights.mimlab.io"; 
+const PB_BASE = window.location.origin;
 
 const loginSection = document.getElementById("login-section");
 const portalSection = document.getElementById("portal-section");
@@ -146,6 +148,45 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupUcDetail();
   initOverview();
   
+
+  // Auth mode toggle (login vs signup)
+  let isSignupMode = false;
+  const authTitle = document.getElementById("auth-title");
+  const authSubmitBtn = document.getElementById("auth-submit-btn");
+  const authToggleBtn = document.getElementById("auth-toggle-btn");
+  const authToggleText = document.getElementById("auth-toggle-text");
+  const confirmPasswordLabel = document.getElementById("confirm-password-label");
+  const confirmPasswordInput = document.getElementById("login-password-confirm");
+  const nameLabel = document.getElementById("name-label");
+  const nameInput = document.getElementById("login-name");
+
+  if (authToggleBtn) {
+    authToggleBtn.addEventListener("click", () => {
+      isSignupMode = !isSignupMode;
+      loginError.textContent = "";
+      
+      if (isSignupMode) {
+        authTitle.textContent = "Sign Up";
+        authSubmitBtn.textContent = "Create Account";
+        authToggleText.textContent = "Already have an account?";
+        authToggleBtn.textContent = "Sign in";
+        confirmPasswordLabel.classList.remove("hidden");
+        nameLabel.classList.remove("hidden");
+        confirmPasswordInput.required = true;
+        nameInput.required = true;
+      } else {
+        authTitle.textContent = "Login";
+        authSubmitBtn.textContent = "Sign in";
+        authToggleText.textContent = "Don't have an account?";
+        authToggleBtn.textContent = "Sign up";
+        confirmPasswordLabel.classList.add("hidden");
+        nameLabel.classList.add("hidden");
+        confirmPasswordInput.required = false;
+        nameInput.required = false;
+      }
+    });
+  }
+
   // Setup logout button
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) {
@@ -180,24 +221,74 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!loginForm) return;
 
   loginForm.addEventListener("submit", async (evt) => {
-    evt.preventDefault();
-    loginError.textContent = "";
+  evt.preventDefault();
+  loginError.textContent = "";
 
-    const email = document.getElementById("login-email").value.trim();
-    const password = document.getElementById("login-password").value;
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
 
-    try {
-      showLoading("Signing in...", "Authenticating");
+  try {
+    if (isSignupMode) {
+      const confirmPassword = confirmPasswordInput.value;
+      const name = nameInput.value.trim();
       
+      // Email domain validation
+      const allowedDomains = ['venafi.com', 'cyberark.com', 'paloalto.com', 'paloaltonetworks.com'];
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+
+      if (!allowedDomains.includes(emailDomain)) {
+        loginError.textContent = "Signup is restricted to employees.";
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        loginError.textContent = "Passwords do not match.";
+        return;
+      }
+      
+      if (password.length < 8) {
+        loginError.textContent = "Password must be at least 8 characters.";
+        return;
+      }
+
+      showLoading("Creating account...", "Please wait");
+      
+      console.log("[POC-PORTAL] Creating account for", email);
+      
+      // Create the user - default role is "se"
+      await pb.collection("users").create({
+        email: email,
+        password: password,
+        passwordConfirm: confirmPassword,
+        name: name,
+        role: "se"
+      });
+      
+      // Auto-login after signup
+      const user = await loginUser(pb, email, password);
+      await initializePortal(pb, user);
+      
+    } else {
+      showLoading("Signing in...", "Authenticating");
       console.log("[POC-PORTAL] Logging in as", email);
       const user = await loginUser(pb, email, password);
-      
       await initializePortal(pb, user);
-
-    } catch (err) {
-      console.error("[POC-PORTAL] Login failed:", err);
-      loginError.textContent = "Login failed – please check credentials or server URL.";
-      hideLoading(true);
     }
-  });
+
+  } catch (err) {
+    console.error("[POC-PORTAL] Auth failed:", err);
+    
+    if (err.data?.data?.email?.message) {
+      loginError.textContent = err.data.data.email.message;
+    } else if (err.data?.data?.password?.message) {
+      loginError.textContent = err.data.data.password.message;
+    } else if (isSignupMode) {
+      loginError.textContent = "Signup failed – " + (err.message || "please try again.");
+    } else {
+      loginError.textContent = "Login failed – please check credentials or server URL.";
+    }
+    hideLoading(true);
+  }
+});
+
 });
