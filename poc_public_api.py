@@ -93,9 +93,15 @@ app = Flask(__name__)
 # Request/Response Logging Middleware
 # ---------------------------------------------------------------------------
 
+# Endpoints to skip verbose logging (e.g., health checks)
+QUIET_ENDPOINTS = {'/api/health'}
+
 @app.before_request
 def log_request_info():
-    """Log details of every incoming request."""
+    """Log details of every incoming request (skip health checks)."""
+    if request.path in QUIET_ENDPOINTS:
+        return
+    
     logger.info("=" * 60)
     logger.info(f"INCOMING REQUEST: {request.method} {request.path}")
     logger.info(f"Remote IP: {request.remote_addr}")
@@ -116,7 +122,10 @@ def log_request_info():
 
 @app.after_request
 def log_response_info(response):
-    """Log response status."""
+    """Log response status (skip health checks)."""
+    if request.path in QUIET_ENDPOINTS:
+        return response
+    
     logger.info(f"RESPONSE: {response.status_code} {response.status}")
     logger.info("=" * 60)
     return response
@@ -173,16 +182,17 @@ def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dic
     Look up SE user by email in PocketBase `users` collection.
     If missing, auto-create with role='se' and trigger password reset email.
     """
-    logger.info(f"[get_or_create_user_se] Starting for email={email}, display_name={display_name}")
+    logger.info(f"[get_or_create_user_se] Starting for email~{email}, display_name={display_name}")
     
     service_login()
 
     email_lower = email.strip().lower()
     url = f"{PB_BASE}/api/collections/users/records"
 
+    # Use ~ for case-insensitive matching
     resp = SESSION.get(
         url,
-        params={"filter": f'email="{email_lower}"', "perPage": 1},
+        params={"filter": f'email~"{email_lower}"', "perPage": 1},
         timeout=10,
     )
     
@@ -234,7 +244,7 @@ def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dic
     user = resp.json()
     user_id = user["id"]
 
-    logger.info(f"[get_or_create_user_se] Created SE user: id={user_id}, email={email_lower}")
+    logger.info(f"[get_or_create_user_se] Created SE user: id={user_id}, email~{email_lower}")
     
     # Trigger password reset email
     try:
@@ -259,7 +269,7 @@ def find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     
     resp = SESSION.get(
         url,
-        params={"filter": f'email="{email_lower}"', "perPage": 1},
+        params={"filter": f'email~"{email_lower}"', "perPage": 1},
         timeout=10,
     )
     
@@ -272,7 +282,7 @@ def find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 def find_poc_by_composite_key(sa_email: str, customer_name: str, product: str) -> Optional[Dict[str, Any]]:
     """Find an existing POC by the composite key: se.email + customer_name + product."""
-    logger.info(f"[find_poc_by_composite_key] Looking for POC: sa_email={sa_email}, customer={customer_name}, product={product}")
+    logger.info(f"[find_poc_by_composite_key] Looking for POC: sa_email~{sa_email}, customer={customer_name}, product={product}")
     
     service_login()
 

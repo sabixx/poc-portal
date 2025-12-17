@@ -16,6 +16,8 @@ A status overview of all POCs
       - find a better visualizatzion as deal breaker..
       - botton corners of active use cases is round, bottom corner of In-Revew is straight corners...
 
+- ERs are not shown unless something is linked... in the 
+
 - long comments are cut off, need some option to show the whole comment..
 
 - show feature request button sometimes disapers.. need to refresh the browser
