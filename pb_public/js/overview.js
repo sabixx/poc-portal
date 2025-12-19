@@ -2,13 +2,15 @@
 import { appState, saveSelectedSe } from "./state.js";
 import { userDisplayLabel, getPucForPoc } from "./helpers.js";
 import { renderActivePocCard } from "./poc_card_active.js";
+import { renderInReviewPocCard } from "./poc_card_in_review.js";
 import { renderClosedPocCard } from "./poc_card_closed.js";
 import { categorizePoc } from "./poc_status.js";
 import { renderDashboard } from "./dashboard.js";
-import { 
-  renderFilterBar, 
-  extractFilterOptions, 
-  applyFilters, 
+import {
+  renderFilterBar,
+  extractFilterOptions,
+  applyFilters,
+  applyBaseFilters,
   setFilterChangeCallback,
   loadFilterState,
   loadManagerSeMapping,
@@ -85,27 +87,30 @@ export async function renderMainView() {
     allPocUseCasesMap.set(p.id, getPucForPoc(p.id, appState.allPuc) || []);
   });
 
-  // Apply filters (pass the map and date for status filtering)
-  const filteredPocs = applyFilters(appState.allPocs, appState.allUsers, allPocUseCasesMap, asOfDate);
-  
-  console.log("[POC-PORTAL] Filtered POCs:", filteredPocs.length, "of", appState.allPocs.length);
+  // Apply BASE filters (SE/region/product/search but NOT view category) for dashboard counts
+  const baseFilteredPocs = applyBaseFilters(appState.allPocs, appState.allUsers, allPocUseCasesMap, asOfDate);
 
-  // Update POC count indicator
+  // Apply FULL filters (including view category) for card display
+  const filteredPocs = applyFilters(appState.allPocs, appState.allUsers, allPocUseCasesMap, asOfDate);
+
+  console.log("[POC-PORTAL] Base filtered POCs:", baseFilteredPocs.length, "| View filtered POCs:", filteredPocs.length, "of", appState.allPocs.length);
+
+  // Update POC count indicator with view-filtered count
   updatePocCountIndicator(filteredPocs.length, appState.allPocs.length);
 
-  // Build filtered POC use case map
-  const filteredPocUseCasesMap = new Map();
-  filteredPocs.forEach(p => {
-    filteredPocUseCasesMap.set(p.id, allPocUseCasesMap.get(p.id) || []);
+  // Build POC use case map for BASE-filtered POCs (for dashboard counts)
+  const baseFilteredPocUseCasesMap = new Map();
+  baseFilteredPocs.forEach(p => {
+    baseFilteredPocUseCasesMap.set(p.id, allPocUseCasesMap.get(p.id) || []);
   });
 
-  // Render dashboard with FILTERED data + total count
-  renderDashboard(filteredPocs, appState.allPocs, filteredPocUseCasesMap, asOfDate);
+  // Render dashboard with BASE-filtered data for accurate category counts
+  renderDashboard(baseFilteredPocs, appState.allPocs, baseFilteredPocUseCasesMap, asOfDate);
 
-  // Render use case stats
+  // Render use case stats with view-filtered POCs
   renderUseCaseStats(filteredPocs, asOfDate);
 
-  // Render POC cards
+  // Render POC cards with view-filtered POCs
   await renderPocCards(filteredPocs, asOfDate);
 }
 
@@ -141,7 +146,19 @@ async function renderPocCards(filteredPocs, asOfDate) {
   console.log("[POC-PORTAL] groups:", groups.length);
 
   // Choose renderer based on view category
-  const cardRenderer = viewCategory === 'active' ? renderActivePocCard : renderClosedPocCard;
+  let cardRenderer;
+  switch (viewCategory) {
+    case 'active':
+      cardRenderer = renderActivePocCard;
+      break;
+    case 'in_review':
+      cardRenderer = renderInReviewPocCard;
+      break;
+    case 'completed':
+    default:
+      cardRenderer = renderClosedPocCard;
+      break;
+  }
   
   await renderPocGroupList(groups, pocsContainer, cardRenderer);
   

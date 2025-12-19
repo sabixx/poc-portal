@@ -6,6 +6,12 @@ export const appState = {
   allUsers: [],
   allPocs: [],
   allPuc: [],
+  allComments: [],
+  allFeatureRequests: [],
+  // Pre-indexed caches for performance
+  commentsByPoc: new Map(),
+  commentsByPuc: new Map(),
+  featureRequestsByPoc: new Map(),
   selectedSeIds: new Set(),
   showOldPocs: false,
 };

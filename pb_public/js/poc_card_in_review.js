@@ -1,43 +1,25 @@
-// poc_card_closed.js - VERSION v4 PERFORMANCE OPTIMIZED
-// Uses pre-loaded cached data instead of per-POC API calls
+// poc_card_in_review.js - VERSION v1.0
+// Card renderer specifically for "In Review" POCs
+// Always shows ProductBoard button and outcome editing
 import { appState } from "./state.js";
 import { formatDate, getPucForPoc } from "./helpers.js";
-import { showPocDetail } from "./poc_detail.js";
 import { renderProductBoardBadges, showProductBoardLinkModal } from "./productboard.js";
 import { showFeatureRequestModal } from "./feature_request_modal.js";
-import { 
-  computeUseCaseMetrics, 
-  renderPocMetrics, 
-  renderUseCaseDetails, 
-  attachMetricsListeners 
+import {
+  computeUseCaseMetrics,
+  renderPocMetrics,
+  renderUseCaseDetails,
+  attachMetricsListeners
 } from "./poc_metrics.js";
 
-console.log('[POC-Card-Closed] VERSION 4.0 - Performance optimized with cached data');
+console.log('[POC-Card-InReview] VERSION 1.0 - Dedicated In Review card with ProductBoard');
 
 const DAY_MS = 1000 * 60 * 60 * 24;
-const HOURS_PER_DAY = 8;
 
 function parseDate(d) {
   if (!d) return null;
   const dt = new Date(d);
   return Number.isNaN(dt.getTime()) ? null : dt;
-}
-
-function workingDaysBetween(start, end) {
-  if (!start || !end) return 0;
-  let s = new Date(start);
-  let e = new Date(end);
-  if (e < s) return 0;
-
-  let days = 0;
-  while (s <= e) {
-    const day = s.getDay();
-    if (day !== 0 && day !== 6) {
-      days++;
-    }
-    s.setDate(s.getDate() + 1);
-  }
-  return days;
 }
 
 // ---------------------------------------------------------------------
@@ -91,40 +73,20 @@ function labelCommercial(value) {
   }
 }
 
-function commercialOutcomeClass(value) {
-  switch (value) {
-    case "now_customer": return "poc-outcome-pill poc-outcome-pill--win";
-    case "lost": return "poc-outcome-pill poc-outcome-pill--loss";
-    case "no_decision": return "poc-outcome-pill poc-outcome-pill--neutral";
-    case "other":
-    case "unknown":
-    default: return "poc-outcome-pill poc-outcome-pill--muted";
-  }
-}
-
-function technicalOutcomeClass(value) {
-  switch (value) {
-    case "win": return "poc-outcome-pill poc-outcome-pill--win";
-    case "loss": return "poc-outcome-pill poc-outcome-pill--loss";
-    case "other": return "poc-outcome-pill poc-outcome-pill--neutral";
-    case "unknown":
-    default: return "poc-outcome-pill poc-outcome-pill--muted";
-  }
-}
-
 // ---------------------------------------------------------------------
-// Render ONE closed / in-review POC card - PERFORMANCE OPTIMIZED
+// Render ONE In Review POC card
 // ---------------------------------------------------------------------
 
-export async function renderClosedPocCard(p) {
+export async function renderInReviewPocCard(p) {
   const pocUcs = getPucForPoc(p.id, appState.allPuc) || [];
   const card = document.createElement("div");
-  card.className = "poc-card poc-card-closed";
+  card.className = "poc-card poc-card-in-review";
 
   const pocStart = parseDate(p.poc_start_date);
   const pocEndPlan = parseDate(p.poc_end_date_plan);
   const lastUpdate = p.last_daily_update_at ? new Date(p.last_daily_update_at) : null;
   const aebValue = p.aeb || p.AEB || "";
+  const customerName = p.customer_name || "Unknown Customer";
 
   // ----- UC stats & metrics using common module ----------------------
   const metrics = computeUseCaseMetrics(pocUcs);
@@ -151,7 +113,7 @@ export async function renderClosedPocCard(p) {
     actualEndDate = lastUpdate || latestCompletedAt || null;
   }
 
-  let pocDurationLabel = "–";
+  let pocDurationLabel = "-";
   if (pocStart && actualEndDate) {
     const diffMs = actualEndDate - pocStart;
     const days = diffMs > 0 ? Math.round(diffMs / DAY_MS) : 0;
@@ -165,36 +127,19 @@ export async function renderClosedPocCard(p) {
     const diff = (actualEndDate - pocEndPlan) / DAY_MS;
     if (diff < -0.5) {
       closeTimingLabel = "early";
-      timingIcon = "🎯";
+      timingIcon = "target";
     } else if (diff > 0.5) {
       closeTimingLabel = "late";
-      timingIcon = "⚠️";
+      timingIcon = "warning";
     } else {
       closeTimingLabel = "on time";
-      timingIcon = "✓";
+      timingIcon = "check";
     }
   }
 
   const technicalResult = p.technical_result || "unknown";
   const commercialResult = p.commercial_result || "unknown";
-  const overallLabel = labelCommercial(commercialResult);
   const seComment = p.se_comment || "";
-
-  const allUseCasesCompleted = totalUc > 0 && completedUc === totalUc;
-
-  // "in review" rules
-  const now = appState.asOfDate ? new Date(appState.asOfDate) : new Date();
-  const lastUpdateAgeDays = lastUpdate != null ? (now.getTime() - lastUpdate.getTime()) / DAY_MS : null;
-  const lastUpdateOlderThan2Days = lastUpdateAgeDays != null && lastUpdateAgeDays >= 2;
-
-  // POC should be in review if:
-  // 1. All use cases completed AND no commercial result set, OR
-  // 2. Last update older than 2 days (regardless of completion) AND no commercial result set
-  const shouldBeInReviewByProgress = allUseCasesCompleted;
-  const shouldBeInReviewByStaleUpdate = lastUpdateOlderThan2Days;
-  
-  const isInReview = (shouldBeInReviewByProgress || shouldBeInReviewByStaleUpdate) && 
-                     (!commercialResult || commercialResult === "unknown");
 
   const currentUser = appState.currentUser;
   const isOwnPoc = currentUser && p.se === currentUser.id;
@@ -205,86 +150,77 @@ export async function renderClosedPocCard(p) {
     (currentUser.role === "se" && isOwnPoc)
   );
 
-  const commClass = commercialOutcomeClass(commercialResult);
-  const techClass = technicalOutcomeClass(technicalResult);
-
   // ProductBoard links from cache (not from p.productboard_links)
   const pbLinks = getProductBoardLinksFromCache(p.id);
   const pbBadgesHtml = renderProductBoardBadges(pbLinks);
 
-  // ----- IMPROVED HEADER: Focus on Customer + Outcome ---------------
+  // Feature requests from cache
+  const featureRequests = getFeatureRequestsFromCache(p.id);
+  const erCount = featureRequests.length;
+
+  // ----- HEADER ---------------
   const headerHtml = `
     <div class="poc-header poc-header-improved">
       <div class="poc-header-main">
         <div class="poc-customer-outcome-row">
-          <h3 class="poc-customer-name">${p.customer_name || "Unknown Customer"}</h3>
-          ${!isInReview ? `
-            <span class="${commClass} poc-outcome-badge-large">
-              ${overallLabel}
-            </span>
-          ` : `
-            <span class="poc-status-badge risk-at_risk">
-              In Review
-            </span>
-          `}
+          <h3 class="poc-customer-name">${customerName}</h3>
+          <span class="poc-status-badge risk-at_risk">
+            In Review
+          </span>
         </div>
-        
+
         <div class="poc-meta-row">
           ${p.product ? `<span class="poc-meta-item poc-product-tag"><strong>Product:</strong> ${p.product}</span>` : ""}
           ${p.partner ? `<span class="poc-meta-item"><strong>Partner:</strong> ${p.partner}</span>` : ""}
           <span class="poc-meta-item poc-aeb-editable">
-            <strong>AEB:</strong> 
-            <span class="poc-aeb-display">${aebValue ? `$${aebValue}` : "–"}</span>
-            ${canEditOutcome ? `<button type="button" class="poc-aeb-edit-btn" title="Edit AEB">✎</button>` : ""}
+            <strong>AEB:</strong>
+            <span class="poc-aeb-display">${aebValue ? `$${aebValue}` : "-"}</span>
+            ${canEditOutcome ? `<button type="button" class="poc-aeb-edit-btn" title="Edit AEB">*</button>` : ""}
           </span>
-          ${pocDurationLabel !== "–" ? `<span class="poc-meta-item"><strong>Duration:</strong> ${pocDurationLabel}${closeTimingLabel ? ` <span class="poc-timing-badge">${timingIcon} ${closeTimingLabel}</span>` : ""}</span>` : ""}
+          ${pocDurationLabel !== "-" ? `<span class="poc-meta-item"><strong>Duration:</strong> ${pocDurationLabel}${closeTimingLabel ? ` <span class="poc-timing-badge">${timingIcon === "target" ? "T" : timingIcon === "warning" ? "!" : "v"} ${closeTimingLabel}</span>` : ""}</span>` : ""}
         </div>
 
         ${pbBadgesHtml}
       </div>
-      
+
       <div class="poc-header-dates-compact">
         <div class="poc-date-compact">
           <span class="poc-date-label">Started</span>
-          <span class="poc-date-value">${formatDate(p.poc_start_date) || "–"}</span>
+          <span class="poc-date-value">${formatDate(p.poc_start_date) || "-"}</span>
         </div>
         <div class="poc-date-compact">
           <span class="poc-date-label">${actualEndDate ? "Ended" : "Est. End"}</span>
-          <span class="poc-date-value">${actualEndDate ? formatDate(actualEndDate) : formatDate(p.poc_end_date_plan) || "–"}</span>
+          <span class="poc-date-value">${actualEndDate ? formatDate(actualEndDate) : formatDate(p.poc_end_date_plan) || "-"}</span>
         </div>
       </div>
     </div>
   `;
 
-  // Get feature request summary FROM CACHE (NO API CALL!)
-  const featureRequests = getFeatureRequestsFromCache(p.id);
-  const erCount = featureRequests.length;
-  const customerName = p.customer_name || "Unknown Customer";
-
-  // ----- COMPACT USE-CASE METRICS using common module ---------------
+  // ----- METRICS with ProductBoard button ALWAYS visible ---------------
   const useCaseMetricsHtml = renderPocMetrics({
     completedUc,
     totalUc,
     avgRating,
     feedbackCount,
     erCount,
-    showProductBoardBtn: false
+    showProductBoardBtn: true  // Always show ProductBoard button for In Review
   });
+
+  // Feature request summary
   let frSummaryHtml = '';
   if (featureRequests.length > 0) {
-    // Render sync version using cached data
     frSummaryHtml = `
       <div class="fr-summary fr-summary-compact" style="cursor: pointer;">
-        <span class="fr-summary-icon">🔗</span>
+        <span class="fr-summary-icon">link</span>
         <span class="fr-summary-count">${featureRequests.length} Feature Request${featureRequests.length !== 1 ? 's' : ''}</span>
       </div>
     `;
   }
 
-  // ----- OUTCOME block (edit vs read-only) --------------------------
+  // ----- OUTCOME block (editing) --------------------------
   let outcomeHtml = "";
 
-  if (isInReview && canEditOutcome) {
+  if (canEditOutcome) {
     // EDITING / FINALIZING STATE - with Save and ProductBoard buttons
     outcomeHtml = `
       <div class="poc-outcome-edit-section">
@@ -292,7 +228,7 @@ export async function renderClosedPocCard(p) {
           <h4>Finalize POC Outcome</h4>
           <p class="poc-outcome-hint">Save technical details and comments, or complete the POC by selecting an overall outcome</p>
         </div>
-        
+
         <div class="poc-outcome-fields">
           <label class="poc-outcome-field">
             <span class="poc-field-label">Overall Outcome *</span>
@@ -304,7 +240,7 @@ export async function renderClosedPocCard(p) {
               <option value="other">Other</option>
             </select>
           </label>
-          
+
           <label class="poc-outcome-field">
             <span class="poc-field-label">Technical Result</span>
             <select class="poc-outcome-tech">
@@ -315,16 +251,16 @@ export async function renderClosedPocCard(p) {
             </select>
           </label>
         </div>
-        
+
         <label class="poc-outcome-comment-field">
           <span class="poc-field-label">SE Comment</span>
           <textarea class="poc-outcome-comment" rows="3"
             placeholder="Summary of outcome, next steps, and key learnings...">${seComment}</textarea>
         </label>
-        
+
         <div class="poc-outcome-actions">
           <button type="button" class="poc-link-productboard-btn poc-outcome-pb-btn" data-poc-id="${p.id}">
-            🔗 ProductBoard
+            link ProductBoard
           </button>
           <div class="poc-outcome-spacer"></div>
           <button type="button" class="poc-outcome-save-btn">
@@ -336,30 +272,18 @@ export async function renderClosedPocCard(p) {
         </div>
       </div>
     `;
-  } else if (!isInReview && (technicalResult !== "unknown" || seComment)) {
-    // READ-ONLY: show technical + comment if available
+  } else {
+    // READ-ONLY view for non-authorized users
     outcomeHtml = `
-      <div class="poc-outcome-readonly">
-        ${technicalResult !== "unknown" ? `
-          <div class="poc-outcome-tech-row">
-            <span class="poc-meta-label">Technical Result:</span>
-            <span class="${techClass}">${labelTechnical(technicalResult)}</span>
-          </div>
-        ` : ""}
-        
-        ${seComment ? `
-          <div class="poc-comment-section">
-            <span class="poc-meta-label">SE Comment</span>
-            <div class="poc-comment-bubble">${seComment}</div>
-          </div>
-        ` : ""}
+      <div class="poc-outcome-readonly poc-outcome-pending">
+        <p class="poc-outcome-pending-text">This POC is awaiting outcome finalization.</p>
       </div>
     `;
   }
 
-  // ----- BODY using common module ------------------------------------
+  // ----- BODY ------------------------------------
   const bodyHtml = `
-    <div class="poc-closed-body">
+    <div class="poc-in-review-body">
       ${useCaseMetricsHtml}
       ${frSummaryHtml}
       ${outcomeHtml}
@@ -374,9 +298,9 @@ export async function renderClosedPocCard(p) {
     </div>
   `;
 
-  // Create refresh function for this card (for when new ERs are linked)
+  // Create refresh function for this card
   const refreshCard = async () => {
-    console.log('[POC-Card-Closed] Refreshing card for POC:', p.id);
+    console.log('[POC-Card-InReview] Refreshing card for POC:', p.id);
     try {
       const newFeatureRequests = await appState.pb
         .collection('poc_feature_requests')
@@ -394,38 +318,23 @@ export async function renderClosedPocCard(p) {
       if (badgesContainer) {
         badgesContainer.outerHTML = renderProductBoardBadges(newPbLinks);
       } else {
+        // Insert badges if they don't exist yet
         const metaRow = card.querySelector('.poc-meta-row');
         if (metaRow && newPbLinks.length > 0) {
           metaRow.insertAdjacentHTML('afterend', renderProductBoardBadges(newPbLinks));
         }
       }
 
-      // Update toggle button text
-      const toggleBtn = card.querySelector('.poc-toggle-details-btn');
-      if (toggleBtn) {
-        const newErCount = newFeatureRequests.length;
-        toggleBtn.dataset.erCount = newErCount;
-        const detailsContainer = card.querySelector('.poc-details');
-        const isHidden = detailsContainer?.classList.contains('hidden');
-        if (newErCount > 0) {
-          toggleBtn.textContent = isHidden ? `Use Cases & Requests (${newErCount})` : "Hide Use Cases & Requests";
-          toggleBtn.classList.add('poc-toggle-details-btn--has-ers');
-        } else {
-          toggleBtn.textContent = isHidden ? "Show Use Case Details" : "Hide Use Case Details";
-          toggleBtn.classList.remove('poc-toggle-details-btn--has-ers');
-        }
-      }
-
-      console.log('[POC-Card-Closed] Card refreshed successfully');
+      console.log('[POC-Card-InReview] Card refreshed successfully');
     } catch (error) {
-      console.error('[POC-Card-Closed] Failed to refresh card:', error);
+      console.error('[POC-Card-InReview] Failed to refresh card:', error);
     }
   };
 
   // Attach metrics listeners (toggle button, use case table, etc.)
   attachMetricsListeners(card, p.id, pbLinks, showProductBoardLinkModal, appState.pb, refreshCard);
 
-  // Feature Request button (POC level) - make summary clickable
+  // Feature Request button - make summary clickable
   const frBtn = card.querySelector('.fr-summary');
   if (frBtn) {
     frBtn.addEventListener('click', (evt) => {
@@ -442,10 +351,10 @@ export async function renderClosedPocCard(p) {
     if (aebEditBtn && aebDisplay) {
       aebEditBtn.addEventListener("click", async (evt) => {
         evt.stopPropagation();
-        
+
         const currentValue = aebValue || "";
         const newValue = prompt("Enter AEB value (USD):", currentValue);
-        
+
         if (newValue !== null && newValue !== currentValue) {
           try {
             if (!appState.pb) {
@@ -458,9 +367,9 @@ export async function renderClosedPocCard(p) {
             });
 
             Object.assign(p, updated);
-            aebDisplay.textContent = newValue ? `$${newValue}` : "–";
+            aebDisplay.textContent = newValue ? `$${newValue}` : "-";
           } catch (err) {
-            console.error("[POC-PORTAL] Failed to update AEB:", err);
+            console.error("[POC-Card-InReview] Failed to update AEB:", err);
             alert("Failed to update AEB. Please try again.");
           }
         }
@@ -468,8 +377,8 @@ export async function renderClosedPocCard(p) {
     }
   }
 
-  // outcome editing behaviour
-  if (isInReview && canEditOutcome) {
+  // Outcome editing behaviour
+  if (canEditOutcome) {
     const techSelect = card.querySelector(".poc-outcome-tech");
     const commSelect = card.querySelector(".poc-outcome-comm");
     const commentInput = card.querySelector(".poc-outcome-comment");
@@ -501,7 +410,7 @@ export async function renderClosedPocCard(p) {
 
           const updated = await appState.pb.collection("pocs").update(p.id, patch);
           Object.assign(p, updated);
-          
+
           if (hintEl) {
             hintEl.textContent = "Changes saved successfully!";
             hintEl.style.color = "#2e7d32";
@@ -514,7 +423,7 @@ export async function renderClosedPocCard(p) {
           saveBtn.disabled = false;
           saveBtn.textContent = "Save Changes";
         } catch (err) {
-          console.error("[POC-PORTAL] Failed to save POC changes:", err);
+          console.error("[POC-Card-InReview] Failed to save POC changes:", err);
           if (hintEl) {
             hintEl.textContent = "Saving failed. Please try again.";
             hintEl.style.color = "#d32f2f";
@@ -558,7 +467,7 @@ export async function renderClosedPocCard(p) {
           Object.assign(p, updated);
           import("./overview.js").then((mod) => mod.renderMainView());
         } catch (err) {
-          console.error("[POC-PORTAL] Failed to complete POC:", err);
+          console.error("[POC-Card-InReview] Failed to complete POC:", err);
           if (hintEl) {
             hintEl.textContent = "Completing failed. Please try again.";
             hintEl.style.color = "#d32f2f";
@@ -569,11 +478,11 @@ export async function renderClosedPocCard(p) {
       });
     }
 
-    // ProductBoard button
+    // ProductBoard button in outcome section
     if (pbBtn) {
       pbBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
-        showProductBoardLinkModal(appState.pb, p.id, null);
+        showProductBoardLinkModal(appState.pb, p.id, null, refreshCard);
       });
     }
   }

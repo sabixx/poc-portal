@@ -90,44 +90,78 @@ export async function fetchAllComments(pb) {
 }
 
 /**
- * Batch fetch ALL feature requests at once (instead of per-POC)
+ * Fetch ALL feature requests by fetching per-POC (which works reliably)
+ * @param {Object} pb - PocketBase instance
+ * @param {Array} pocs - Array of POC objects (optional, will fetch for all if provided)
  */
-export async function fetchAllFeatureRequests(pb) {
+export async function fetchAllFeatureRequests(pb, pocs = []) {
   console.log("[POC-PORTAL] Fetching all feature requests...");
+
+  // First, try the simplest possible query to test collection access
+  console.log("[POC-PORTAL] Testing basic collection access...");
   try {
-    // First try without expand to see if collection exists
-    const frs = await pb.collection("poc_feature_requests").getFullList({
-      sort: "-created",
+    const testResult = await pb.collection("poc_feature_requests").getList(1, 1, {
       $autoCancel: false
     });
-    
-    // If we got results, try to expand feature_request relation
-    if (frs.length > 0) {
-      try {
-        const frsWithExpand = await pb.collection("poc_feature_requests").getFullList({
-          expand: "feature_request",
-          sort: "-created",
-          $autoCancel: false
-        });
-        console.log("[POC-PORTAL] Loaded", frsWithExpand.length, "feature requests total (with expand)");
-        return frsWithExpand;
-      } catch (expandError) {
-        console.log("[POC-PORTAL] Could not expand feature_request, using basic records");
-        return frs;
-      }
-    }
-    
-    console.log("[POC-PORTAL] Loaded", frs.length, "feature requests total");
-    return frs;
-  } catch (error) {
-    // Collection might not exist or be empty - that's OK
-    if (error.status === 400 || error.status === 404) {
-      console.log("[POC-PORTAL] Feature requests collection not available or empty");
-      return [];
-    }
-    console.error("[POC-PORTAL] Failed to fetch feature requests:", error);
+    console.log("[POC-PORTAL] Basic access OK - collection has", testResult.totalItems, "total records");
+  } catch (testError) {
+    console.error("[POC-PORTAL] Basic collection access FAILED:", testError.message);
+    console.error("[POC-PORTAL] This suggests a permission or collection configuration issue");
+    console.error("[POC-PORTAL] Error status:", testError.status, "data:", JSON.stringify(testError.data));
+
+    // Return empty - can't access the collection at all
     return [];
   }
+
+  // If we have POCs, fetch per-POC SEQUENTIALLY
+  if (pocs && pocs.length > 0) {
+    console.log("[POC-PORTAL] Using sequential per-POC fetch for", pocs.length, "POCs...");
+
+    const allRecords = [];
+    let pocsWithERs = 0;
+    let failCount = 0;
+
+    for (const poc of pocs) {
+      try {
+        // Use getList with minimal options
+        const result = await pb.collection("poc_feature_requests").getList(1, 100, {
+          filter: `poc = "${poc.id}"`,
+          $autoCancel: false
+        });
+
+        if (result.items.length > 0) {
+          pocsWithERs++;
+          // Expand each one individually
+          for (const fr of result.items) {
+            try {
+              const expanded = await pb.collection("poc_feature_requests").getOne(fr.id, {
+                expand: "feature_request,use_case",
+                $autoCancel: false
+              });
+              allRecords.push(expanded);
+            } catch (expErr) {
+              console.warn("[POC-PORTAL] Could not expand FR", fr.id);
+              allRecords.push(fr);
+            }
+          }
+        }
+      } catch (error) {
+        failCount++;
+        if (failCount <= 3) {
+          console.warn("[POC-PORTAL] Failed for POC", poc.id, ":", error.message);
+        }
+      }
+    }
+
+    if (failCount > 3) {
+      console.warn("[POC-PORTAL] ... and", failCount - 3, "more failures");
+    }
+
+    console.log("[POC-PORTAL] Loaded", allRecords.length, "feature requests from", pocsWithERs, "POCs (", failCount, "failures)");
+    return allRecords;
+  }
+
+  return [];
 }
 
 // productboard/api.js

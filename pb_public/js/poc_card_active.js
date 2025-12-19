@@ -96,6 +96,24 @@ function getFeatureRequestsFromCache(pocId) {
 }
 
 // -----------------------------------------------------------------------------
+// Get ProductBoard links from feature requests cache
+// -----------------------------------------------------------------------------
+
+function getProductBoardLinksFromCache(pocId) {
+  const featureRequests = getFeatureRequestsFromCache(pocId);
+  if (!featureRequests || featureRequests.length === 0) {
+    return [];
+  }
+
+  // Transform feature requests into ProductBoard link format for badges
+  return featureRequests.map(fr => ({
+    feature_name: fr.expand?.feature_request?.title || fr.expand?.feature_request?.name || 'Feature',
+    status: fr.expand?.feature_request?.status || 'unknown',
+    expand: fr.expand
+  }));
+}
+
+// -----------------------------------------------------------------------------
 // Prep readiness logic
 // -----------------------------------------------------------------------------
 
@@ -281,8 +299,9 @@ export async function renderActivePocCard(p) {
   const metrics = computeUseCaseMetrics(pocUcs);
   const { totalUc, completedUc, avgRating, feedbackCount } = metrics;
 
-  // ProductBoard links
-  const pbLinks = p.productboard_links || [];
+  // ProductBoard links from cache (not from p.productboard_links)
+  const pbLinks = getProductBoardLinksFromCache(p.id);
+  console.log('[POC-Card-Active] ProductBoard links for POC', p.id, ':', pbLinks);
   const pbBadgesHtml = renderProductBoardBadges(pbLinks);
 
   // ---- Feature requests FROM CACHE (NO API CALL!) ----
@@ -327,8 +346,6 @@ export async function renderActivePocCard(p) {
               <button type="button" class="poc-aeb-edit-btn" title="Edit AEB">✎</button>
             </span>
           </div>
-
-          ${pbBadgesHtml}
 
           ${hasCustomerPrep ? `
             <div class="poc-prep-banner ${prepBadgeClass(prepInfo).replace('prep-badge', 'prep-banner')}">

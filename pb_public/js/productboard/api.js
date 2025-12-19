@@ -203,46 +203,43 @@ function mapStatus(pbStatus) {
  */
 export async function getExistingLinks(pb, pocId, useCaseId = null) {
   console.log('[ProductBoard API] getExistingLinks called with:', { pocId, useCaseId });
-  
+
   try {
-    // Try simplest query first - no expand, no filter
-    console.log('[ProductBoard API] Fetching all poc_feature_requests...');
-    
-    const allLinks = await pb.collection('poc_feature_requests').getFullList({
-      sort: '-created_at'
-      // NO expand, NO filter - absolutely minimal query
-    });
-    
-    console.log('[ProductBoard API] Fetched', allLinks.length, 'total links');
-    
-    // Filter in JavaScript
-    let filtered = allLinks.filter(link => link.poc === pocId);
-    
+    // Build filter
+    let filter = `poc = "${pocId}"`;
     if (useCaseId) {
-      filtered = filtered.filter(link => link.use_case === useCaseId);
+      filter += ` && use_case = "${useCaseId}"`;
     }
-    
-    console.log('[ProductBoard API] Filtered to', filtered.length, 'links for this POC/UC');
-    
-    // Now manually expand each one
+
+    console.log('[ProductBoard API] Fetching with filter:', filter);
+
+    // Use getList instead of getFullList (more reliable)
+    const result = await pb.collection('poc_feature_requests').getList(1, 100, {
+      filter,
+      $autoCancel: false
+    });
+
+    console.log('[ProductBoard API] Fetched', result.items.length, 'links for this POC');
+
+    // Expand each record individually (this works reliably)
     const expandedLinks = [];
-    for (const link of filtered) {
+    for (const link of result.items) {
       try {
         const expanded = await pb.collection('poc_feature_requests').getOne(link.id, {
-          expand: 'feature_request,use_case'
+          expand: 'feature_request,use_case',
+          $autoCancel: false
         });
         expandedLinks.push(expanded);
-      } catch (error) {
-        console.warn('[ProductBoard API] Could not expand link:', link.id, error);
-        expandedLinks.push(link); // Use unexpanded
+      } catch (expErr) {
+        console.warn('[ProductBoard API] Could not expand link:', link.id);
+        expandedLinks.push(link);
       }
     }
-    
-    console.log('[ProductBoard API] Returning', expandedLinks.length, 'expanded links');
+
     return expandedLinks;
   } catch (error) {
     console.error('[ProductBoard API] Get existing links error:', error);
-    console.error('[ProductBoard API] Error details:', error.data);
+    console.error('[ProductBoard API] Error details:', JSON.stringify(error.data, null, 2));
     return []; // Return empty array to allow modal to continue
   }
 }

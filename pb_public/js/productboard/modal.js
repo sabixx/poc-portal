@@ -2,7 +2,7 @@
 // ProductBoard Modal - COMPLETE WORKING VERSION
 console.log('[ProductBoard Modal] VERSION 2.2 - With refresh callback support');
 
-import { searchFeatures, getProducts, getExistingLinks, createLink, deleteLink } from './api.js';
+import { searchFeatures, getProducts, getExistingLinks, createLink, deleteLink, getFeature } from './api.js';
 import { loadAndRenderHotERs, loadAndRenderRecentFeatures } from './suggestions.js';
 import { MIN_SEARCH_LENGTH, SEARCH_DEBOUNCE_MS } from './config.js';
 import { 

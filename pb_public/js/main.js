@@ -56,14 +56,14 @@ async function initializePortal(pb, user) {
   showLoading("Loading comments...", "Fetching feedback data");
   const [allComments, allFeatureRequests] = await Promise.all([
     fetchAllComments(pb),
-    fetchAllFeatureRequests(pb)
+    fetchAllFeatureRequests(pb, pocs)  // Pass pocs for per-POC fetching
   ]);
   appState.allComments = allComments;
   appState.allFeatureRequests = allFeatureRequests;
   
-  // Pre-index comments by POC and use case
-  appState.commentsByPoc = new Map();
-  appState.commentsByPuc = new Map();
+  // Pre-index comments by POC and use case (clear existing and repopulate)
+  appState.commentsByPoc.clear();
+  appState.commentsByPuc.clear();
   allComments.forEach(c => {
     if (c.poc) {
       if (!appState.commentsByPoc.has(c.poc)) {
@@ -83,8 +83,8 @@ async function initializePortal(pb, user) {
   });
   console.log("[POC-PORTAL] Indexed comments:", appState.commentsByPoc.size, "POCs,", appState.commentsByPuc.size, "use cases");
 
-  // Pre-index feature requests by POC
-  appState.featureRequestsByPoc = new Map();
+  // Pre-index feature requests by POC (clear existing and repopulate)
+  appState.featureRequestsByPoc.clear();
   allFeatureRequests.forEach(fr => {
     if (fr.poc) {
       if (!appState.featureRequestsByPoc.has(fr.poc)) {
@@ -93,7 +93,14 @@ async function initializePortal(pb, user) {
       appState.featureRequestsByPoc.get(fr.poc).push(fr);
     }
   });
-  console.log("[POC-PORTAL] Indexed feature requests:", appState.featureRequestsByPoc.size, "POCs");
+  console.log("[POC-PORTAL] Indexed feature requests:", appState.featureRequestsByPoc.size, "POCs,", allFeatureRequests.length, "total ERs");
+  // Debug: Show which POCs have feature requests
+  if (appState.featureRequestsByPoc.size > 0) {
+    console.log("[POC-PORTAL] POCs with feature requests:", Array.from(appState.featureRequestsByPoc.keys()));
+  } else if (allFeatureRequests.length > 0) {
+    // ERs were fetched but not indexed - likely missing poc field
+    console.warn("[POC-PORTAL] WARNING: Fetched", allFeatureRequests.length, "ERs but none indexed. Sample ER:", allFeatureRequests[0]);
+  }
 
   if (roleHint) {
     roleHint.textContent = roleText;
