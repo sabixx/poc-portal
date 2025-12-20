@@ -998,3 +998,212 @@
   background: var(--bg-elevated);
   border-color: var(--border-subtle);
 }
+
+/* ================================================================
+   CREATE ER MODAL FORM STYLES
+   ================================================================ */
+
+.pb-create-er-modal {
+  max-width: 550px;
+}
+
+.pb-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.pb-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.pb-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #424242;
+}
+
+.pb-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.pb-form-row .pb-form-group {
+  flex: 1;
+}
+
+.pb-input,
+.pb-textarea,
+.pb-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pb-input:focus,
+.pb-textarea:focus,
+.pb-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+}
+
+.pb-input::placeholder,
+.pb-textarea::placeholder {
+  color: #9e9e9e;
+}
+
+.pb-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.pb-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23757575' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.pb-btn-primary,
+.pb-btn-secondary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pb-btn-primary {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  border: none;
+  color: white;
+}
+
+.pb-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.pb-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pb-btn-secondary {
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: #616161;
+}
+
+.pb-btn-secondary:hover {
+  background: #f5f5f5;
+  border-color: #bdbdbd;
+}
+
+/* Dark Mode */
+:root[data-theme="dark"] .pb-form-group label {
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .pb-input,
+:root[data-theme="dark"] .pb-textarea,
+:root[data-theme="dark"] .pb-select {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .pb-input::placeholder,
+:root[data-theme="dark"] .pb-textarea::placeholder {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .pb-btn-secondary {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .pb-btn-secondary:hover {
+  background: var(--bg-card);
+}
+
+/* ================================================================
+   CHECKBOX STYLES (Deal Breaker, etc.)
+   ================================================================ */
+
+.pb-checkbox-group {
+  margin-top: 8px;
+}
+
+.pb-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff8e1;
+  transition: all 0.2s ease;
+}
+
+.pb-checkbox-label:hover {
+  border-color: #ffb300;
+  background: #fff3c4;
+}
+
+.pb-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #f57c00;
+}
+
+.pb-checkbox-text {
+  font-weight: 600;
+  color: #e65100;
+  font-size: 14px;
+}
+
+.pb-checkbox-hint {
+  display: block;
+  font-size: 12px;
+  color: #8d6e63;
+  margin-top: 2px;
+}
+
+/* Dark mode checkbox */
+:root[data-theme="dark"] .pb-checkbox-label {
+  background: rgba(255, 152, 0, 0.1);
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+:root[data-theme="dark"] .pb-checkbox-label:hover {
+  background: rgba(255, 152, 0, 0.15);
+  border-color: rgba(255, 152, 0, 0.5);
+}
+
+:root[data-theme="dark"] .pb-checkbox-text {
+  color: #ffb74d;
+}
+
+:root[data-theme="dark"] .pb-checkbox-hint {
+  color: var(--fg-muted);
+}

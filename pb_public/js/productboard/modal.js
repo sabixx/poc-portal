@@ -402,8 +402,10 @@ async function loadProducts() {
     select.innerHTML = '<option value="">All Products</option>';
     products.forEach(product => {
       const option = document.createElement('option');
-      option.value = product;
-      option.textContent = product;
+      // Handle both object format {id, name} and legacy string format
+      const name = typeof product === 'object' ? product.name : product;
+      option.value = name;
+      option.textContent = name;
       select.appendChild(option);
     });
     

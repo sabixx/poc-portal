@@ -41,15 +41,16 @@ routerAdd("GET", "/api/productboard/products", (c) => {
             console.log("[ProductBoard] First product object:", products[0]);
         }
 
-        const productNames = products
-            .map((p) => p && p.name)
-            .filter((name) => !!name)
-            .sort();
+        // Return full product objects (id + name) for feature creation
+        const productList = products
+            .filter((p) => p && p.name && p.id)
+            .map((p) => ({ id: p.id, name: p.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-        console.log("[ProductBoard] Product names:", productNames);
+        console.log("[ProductBoard] Product list:", productList.map(p => p.name));
 
         return c.json(200, {
-            data: productNames,
+            data: productList,
         });
     } catch (error) {
         console.error("[ProductBoard] Products hook error:", error);

@@ -328,6 +328,22 @@ export function getImpactBadgeClass(impact) {
 }
 
 /**
+ * Display customer impact as user-friendly label
+ * Maps PocketBase values to UI display names
+ * @param {string} dbValue - PocketBase stored value
+ * @returns {string} Display label
+ */
+export function displayCustomerImpact(dbValue) {
+  const mapping = {
+    'blocker': 'Critical',
+    'high': 'Time Sensitive',
+    'medium': 'Roadmap Candidate',
+    'low': 'Nice To Have'
+  };
+  return mapping[dbValue] || dbValue;
+}
+
+/**
  * Format release date for display
  * @param {string} dateStr - ISO date string
  * @returns {string} Formatted date

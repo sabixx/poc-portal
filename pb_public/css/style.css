@@ -3717,6 +3717,73 @@ input:focus {
   background-color: #e0e0e0;
 }
 
+/* Create ER Modal Form Styles */
+.pb-create-er-modal {
+  max-width: 550px;
+}
+
+.pb-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.pb-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.pb-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #424242;
+}
+
+.pb-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.pb-form-row .pb-form-group {
+  flex: 1;
+}
+
+.pb-input,
+.pb-textarea,
+.pb-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pb-input:focus,
+.pb-textarea:focus,
+.pb-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+}
+
+.pb-input::placeholder,
+.pb-textarea::placeholder {
+  color: #9e9e9e;
+}
+
+.pb-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.pb-select {
+  cursor: pointer;
+}
+
 /* Sections */
 .pb-product-section,
 .pb-search-section {

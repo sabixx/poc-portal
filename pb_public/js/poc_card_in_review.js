@@ -334,6 +334,19 @@ export async function renderInReviewPocCard(p) {
   // Attach metrics listeners (toggle button, use case table, etc.)
   attachMetricsListeners(card, p.id, pbLinks, showProductBoardLinkModal, appState.pb, refreshCard);
 
+  // Listen for ER toggle event
+  card.addEventListener('toggle-ers', async (e) => {
+    const showERs = e.detail?.showERs ?? true;
+    console.log('[POC-Card-InReview] toggle-ers event received:', showERs);
+
+    // Re-render details with toggle state
+    const detailsContainer = card.querySelector('.poc-details');
+    if (detailsContainer) {
+      const { renderActiveUseCaseTable } = await import('./use_case_table.js');
+      detailsContainer.innerHTML = renderActiveUseCaseTable(pocUcs, p.id, featureRequests, customerName, showERs);
+    }
+  });
+
   // Feature Request button - make summary clickable
   const frBtn = card.querySelector('.fr-summary');
   if (frBtn) {

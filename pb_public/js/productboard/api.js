@@ -90,6 +90,44 @@ export async function getProducts() {
 }
 
 /**
+ * Create a new feature in ProductBoard
+ * @param {Object} params - Feature parameters
+ * @param {string} params.title - Feature title
+ * @param {string} params.description - Feature description
+ * @param {string} params.productId - ProductBoard product ID
+ * @param {string} params.productName - Product display name
+ * @returns {Promise<Object>} - Created feature
+ */
+export async function createFeature({ title, description, productId, productName }) {
+  try {
+    console.log('[ProductBoard API] createFeature called with:', { title, productId, productName });
+
+    const response = await fetch('/api/productboard/features', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        productId,
+        productName
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create feature');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[ProductBoard API] Create feature error:', error);
+    throw error;
+  }
+}
+
+/**
  * Create insight in ProductBoard
  * @param {Object} params - Insight parameters
  * @returns {Promise<Object>}
@@ -139,13 +177,15 @@ export async function createInsight({
  * @returns {Promise<Object>} - Local feature_request record
  */
 export async function syncFeatureToLocal(pb, feature) {
+  console.log('[ProductBoard API] syncFeatureToLocal called with:', feature);
+
   try {
     // Check if feature already exists
     const existing = await pb.collection('feature_requests').getList(1, 1, {
       filter: `source = "productboard" && external_id = "${feature.id}"`,
       $autoCancel: false
     });
-    
+
     const featureData = {
       source: 'productboard',
       external_id: feature.id,
@@ -156,16 +196,22 @@ export async function syncFeatureToLocal(pb, feature) {
       product: feature.product || '',
       last_synced_at: new Date().toISOString()
     };
-    
+
+    console.log('[ProductBoard API] Feature data to save:', featureData);
+
     if (existing.totalItems > 0) {
       // Update existing
+      console.log('[ProductBoard API] Updating existing feature:', existing.items[0].id);
       return await pb.collection('feature_requests').update(existing.items[0].id, featureData);
     } else {
       // Create new
+      console.log('[ProductBoard API] Creating new feature_request record');
       return await pb.collection('feature_requests').create(featureData);
     }
   } catch (error) {
     console.error('[ProductBoard API] Sync feature error:', error);
+    console.error('[ProductBoard API] Error data:', error.data);
+    console.error('[ProductBoard API] Error response:', error.response);
     throw error;
   }
 }
@@ -192,6 +238,34 @@ function mapStatus(pbStatus) {
   }
   
   return 'under_consideration';
+}
+
+/**
+ * Map UI customer impact categories to PocketBase values
+ * UI categories: critical, time_sensitive, roadmap_candidate, nice_to_have
+ * PocketBase values: blocker, high, medium, low
+ */
+function mapCustomerImpact(uiValue) {
+  const mapping = {
+    'critical': 'blocker',
+    'time_sensitive': 'high',
+    'roadmap_candidate': 'medium',
+    'nice_to_have': 'low'
+  };
+  return mapping[uiValue] || 'medium';
+}
+
+/**
+ * Reverse map PocketBase customer impact to UI display value
+ */
+export function displayCustomerImpact(dbValue) {
+  const mapping = {
+    'blocker': 'Critical',
+    'high': 'Time Sensitive',
+    'medium': 'Roadmap Candidate',
+    'low': 'Nice To Have'
+  };
+  return mapping[dbValue] || dbValue;
 }
 
 /**
@@ -305,9 +379,10 @@ export async function createLink(pb, pocId, featureRequestId, useCaseId = null, 
     const linkData = {
       poc: pocId,
       feature_request: actualFeatureRequestId,
-      needed_by_date: options.neededByDate || '',
+      needed_by: options.neededByDate || '',
       se_comment: options.seComment || '',
-      customer_impact: options.customerImpact || 'medium',
+      customer_impact: mapCustomerImpact(options.customerImpact),
+      is_deal_breaker: options.isDealBreaker || false,
       created_by: currentUserId,
     };
 

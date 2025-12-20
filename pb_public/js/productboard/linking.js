@@ -2,7 +2,7 @@
 // Link features to POCs
 
 import { appState } from '../state.js';
-import { syncFeatureToLocal, getExistingLinks, deleteLink } from './api.js';
+import { syncFeatureToLocal, getExistingLinks, deleteLink, displayCustomerImpact } from './api.js';
 
 /**
  * Link feature to POC
@@ -119,7 +119,7 @@ function renderLinks(links, container, onUpdate) {
             ${feature.product ? `<span class="pb-product-tag">${escapeHtml(feature.product)}</span>` : ''}
             ${link.customer_impact ? `
               <span class="pb-impact-badge pb-impact-${link.customer_impact}">
-                ${capitalizeFirst(link.customer_impact)}
+                ${displayCustomerImpact(link.customer_impact)}
               </span>
             ` : ''}
             ${link.needed_by_date ? `

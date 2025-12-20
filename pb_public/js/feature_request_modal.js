@@ -9,6 +9,7 @@ import {
   getStatusBadgeClass,
   getStatusLabel,
   getImpactBadgeClass,
+  displayCustomerImpact,
   formatReleaseDate,
 } from "./productboard_api.js";
 
@@ -413,9 +414,9 @@ function renderLinkedFeatures(links) {
         
         ${link.customer_impact ? `
           <div class="fr-linked-detail">
-            <strong>Impact:</strong> 
+            <strong>Impact:</strong>
             <span class="fr-impact-badge ${getImpactBadgeClass(link.customer_impact)}">
-              ${link.customer_impact}
+              ${displayCustomerImpact(link.customer_impact)}
             </span>
           </div>
         ` : ''}
