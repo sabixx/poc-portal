@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/timeframe_selector.css">
   <link rel="stylesheet" href="css/productboard_combined.css">
   <link rel="stylesheet" href="css/loading.css">
+  <link rel="stylesheet" href="css/exec_dashboard.css">
 
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -23,6 +24,7 @@
       <div class="hint" id="user-info">Not signed in</div>
     </div>
     <div class="header-actions">
+      <button id="exec-dashboard-btn" type="button" class="header-btn hidden" title="ER Analytics View">📊 ER VIEW</button>
       <button id="settings-btn" type="button" class="header-btn hidden" title="Settings">⚙️</button>
       <button id="logout-btn" type="button" class="header-btn hidden" title="Sign out">🚪</button>
       <button id="theme-toggle" type="button">🌓</button>
@@ -99,6 +101,27 @@
           </div>
         </div>
       </section>
+    </section>
+
+    <!-- Executive Dashboard -->
+    <section id="exec-dashboard-section" class="hidden">
+      <!-- Back Button -->
+      <button id="exec-back-btn" type="button" class="exec-back-btn">← Back to Portal</button>
+
+      <!-- Filter Bar -->
+      <div id="exec-filter-bar"></div>
+
+      <!-- Saved Views Bar -->
+      <div id="exec-saved-views"></div>
+
+      <!-- Sticky Summary -->
+      <div id="exec-summary" class="exec-summary-sticky"></div>
+
+      <!-- Top ERs Section -->
+      <div id="exec-top-ers"></div>
+
+      <!-- Drill-down Panel -->
+      <div id="exec-drilldown" class="hidden"></div>
     </section>
 
     <!-- POC detail view -->

@@ -16,13 +16,32 @@ A status overview of all POCs
       - find a better visualizatzion as deal breaker..
       - botton corners of active use cases is round, bottom corner of In-Revew is straight corners...
 
+- The in REview / closed POCs cards, it's not showing the ERs like it does in Active..
+
+- the Exec dashboard:
+  renmae to ER VIEW
+    make the reveine with missing features orange, not green, unless the overall state of the POC is Won as customer.
+
+  I want 3 default predefined filter. It should be possible to add a filter bt product. 
+
+  1. Revenue at risk - current deals
+    Any ERs with Deal blockers not yet colsed (ovcerall status empty)
+
+  2. Potential increate Win rate - current deals.
+    Any ERs even non blocking for POCs not closed (overall status empty)
+
+  2. lost due to missing capabilites
+    Lost deals with blockers or ERs where overall status (not equal to Won as customer and not empty...
+
+
+
 - Need better ERROR reporting in case something failes with registration... 
 
-- ERs are not shown unless something is linked... in the 
+- ERs are not shown unless something is linked... FIXED....
 
 - long comments are cut off, need some option to show the whole comment..
 
-- show feature request button sometimes disapers.. need to refresh the browser
+- show feature request button sometimes disapers.. need to refresh the browser FIXED(?)
 
 - filtering isn't working... needs to be done anyhow..
 

@@ -13,8 +13,9 @@ import { setupUcDetail } from "./uc_detail.js";
 import { renderUseCaseStats } from "./overview_stats.js";
 import { initLoadingOverlay, showLoading, hideLoading } from "./loading.js";
 import { showSettingsModal } from "./settings.js";
+import { initExecDashboard, refreshExecDashboard } from "./exec_dashboard.js";
 
-console.log("[POC-PORTAL] main.js VERSION 0.0.4 - Session persistence + Settings");
+console.log("[POC-PORTAL] main.js VERSION 0.0.5 - Session persistence + Settings + Exec Dashboard");
 
 //const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
 //const PB_BASE = "https://pocinsights.mimlab.io"; 
@@ -38,9 +39,10 @@ async function initializePortal(pb, user) {
   loginSection.classList.add("hidden");
   portalSection.classList.remove("hidden");
   
-  // Show logout and settings buttons
+  // Show logout, settings, and exec dashboard buttons
   document.getElementById("logout-btn")?.classList.remove("hidden");
   document.getElementById("settings-btn")?.classList.remove("hidden");
+  document.getElementById("exec-dashboard-btn")?.classList.remove("hidden");
 
   // Update loading message
   showLoading("Loading data...", "Fetching POCs and users");
@@ -118,6 +120,40 @@ async function initializePortal(pb, user) {
 
   // Hide loading overlay when done
   hideLoading(true);
+
+  // Setup executive dashboard navigation
+  setupExecDashboardNav();
+}
+
+/**
+ * Setup executive dashboard navigation handlers
+ */
+function setupExecDashboardNav() {
+  const portalSection = document.getElementById("portal-section");
+  const execSection = document.getElementById("exec-dashboard-section");
+  const execBtn = document.getElementById("exec-dashboard-btn");
+  const execBackBtn = document.getElementById("exec-back-btn");
+
+  // Open executive dashboard
+  if (execBtn) {
+    execBtn.addEventListener("click", () => {
+      console.log("[POC-PORTAL] Opening Executive Dashboard");
+      portalSection?.classList.add("hidden");
+      execSection?.classList.remove("hidden");
+
+      // Initialize/refresh the exec dashboard
+      initExecDashboard();
+    });
+  }
+
+  // Back to portal
+  if (execBackBtn) {
+    execBackBtn.addEventListener("click", () => {
+      console.log("[POC-PORTAL] Returning to Portal");
+      execSection?.classList.add("hidden");
+      portalSection?.classList.remove("hidden");
+    });
+  }
 }
 
 /**
@@ -134,8 +170,10 @@ function handleLogout() {
   // Reset UI
   loginSection.classList.remove("hidden");
   portalSection.classList.add("hidden");
+  document.getElementById("exec-dashboard-section")?.classList.add("hidden");
   document.getElementById("logout-btn")?.classList.add("hidden");
   document.getElementById("settings-btn")?.classList.add("hidden");
+  document.getElementById("exec-dashboard-btn")?.classList.add("hidden");
   userInfo.textContent = "Not signed in";
   
   // Clear form
