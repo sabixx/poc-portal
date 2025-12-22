@@ -179,7 +179,10 @@ export function computePrepReadiness(p, pocUcs, asOfDate) {
  */
 export function computePocStatus(p, pocUcs, asOfDate) {
   const asOf = asOfDate || new Date();
-  
+
+  // 0. Check if POC is deregistered - should be hidden everywhere
+  const isDeregistered = !!p.deregistered_at;
+
   // 1. Check last update age
   const lastStr = p.last_daily_update_at;
   const last = lastStr ? new Date(lastStr) : null;
@@ -196,7 +199,7 @@ export function computePocStatus(p, pocUcs, asOfDate) {
 
   // 3. Prep readiness
   const prepInfo = computePrepReadiness(p, pocUcs, asOf);
-  
+
   // 4. Stalled engagement check
   const stalledInfo = computeStalledEngagement(p, pocUcs, asOf);
 
@@ -204,11 +207,13 @@ export function computePocStatus(p, pocUcs, asOfDate) {
   const pocEndDate = parseDate(p.poc_end_date_plan || p.poc_end_date);
   let daysUntilEnd = null;
   let isOverdue = false;
+  let endDatePassed = false;
 
   if (pocEndDate) {
     const timeDiff = pocEndDate - asOf;
     daysUntilEnd = Math.ceil(timeDiff / DAY_MS);
     isOverdue = asOf > pocEndDate;
+    endDatePassed = asOf > pocEndDate;
   }
 
   // 6. Commercial result
@@ -216,9 +221,26 @@ export function computePocStatus(p, pocUcs, asOfDate) {
   const hasCommercialResult = commercialResult && commercialResult !== "unknown";
 
   // 7. Determine overall status
-  const isActive = !allCompleted && diffDays <= 2;
-  const isInReview = (allCompleted || diffDays > 2) && !hasCommercialResult;
-  const isCompleted = hasCommercialResult && (allCompleted || diffDays > 2);
+  // For POCs with NO use cases (manual POCs): use end_date logic instead of heartbeat
+  // For POCs WITH use cases: use heartbeat logic (last_updated_at)
+  let isActive, isInReview, isCompleted;
+
+  if (isDeregistered) {
+    // Deregistered POCs are hidden - mark as not active/in-review/completed
+    isActive = false;
+    isInReview = false;
+    isCompleted = false;
+  } else if (totalUc === 0) {
+    // Manual POC (no use cases): stay Active until end_date, then In Review
+    isActive = !endDatePassed;
+    isInReview = endDatePassed && !hasCommercialResult;
+    isCompleted = hasCommercialResult;
+  } else {
+    // Regular POC with use cases: use heartbeat logic
+    isActive = !allCompleted && diffDays <= 2;
+    isInReview = (allCompleted || diffDays > 2) && !hasCommercialResult;
+    isCompleted = hasCommercialResult && (allCompleted || diffDays > 2);
+  }
 
   // 8. Determine risk status
   let status = "on_track";
@@ -252,7 +274,8 @@ export function computePocStatus(p, pocUcs, asOfDate) {
     isInReview,
     isCompleted,
     isOverdue,
-    
+    isDeregistered,
+
     // Risk indicators
     isAtRisk: status === "at_risk" || status === "at_risk_prep" || status === "at_risk_stalled",
     isAtRiskPrep: status === "at_risk_prep",
@@ -287,7 +310,7 @@ export function computePocStatus(p, pocUcs, asOfDate) {
  */
 export function categorizePoc(p, pocUcs, asOfDate) {
   const status = computePocStatus(p, pocUcs, asOfDate);
-  
+
   return {
     poc: p,
     status,
@@ -296,6 +319,7 @@ export function categorizePoc(p, pocUcs, asOfDate) {
     isInReview: status.isInReview,
     isCompleted: status.isCompleted,
     isOverdue: status.isOverdue,
+    isDeregistered: status.isDeregistered,
     isAtRisk: status.isAtRisk,
     isAtRiskPrep: status.isAtRiskPrep,
     isAtRiskStalled: status.isAtRiskStalled,
@@ -347,8 +371,12 @@ export function computeDashboardMetrics(pocs, pocUseCasesMap, asOfDate) {
   pocs.forEach(p => {
     const pocUcs = pocUseCasesMap.get(p.id) || [];
     const categorized = categorizePoc(p, pocUcs, asOf);
+
+    // Skip deregistered POCs - they should not appear anywhere
+    if (categorized.isDeregistered) return;
+
     const monthInfo = getPocCompletionMonth(p, asOf);
-    
+
     // Status categories
     if (categorized.isOnTrack && categorized.isActive) {
       metrics.onTrack.push(p);

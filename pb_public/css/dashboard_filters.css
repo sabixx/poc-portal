@@ -1409,7 +1409,7 @@
 }
 
 .header-btn.hidden {
-  display: none;
+  display: none !important;
 }
 
 /* ================================================================

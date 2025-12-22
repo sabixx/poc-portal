@@ -1199,6 +1199,9 @@ export function refreshFilterSummary() {
  */
 export function applyBaseFilters(pocs, users, pocUseCasesMap, asOfDate) {
   return pocs.filter(p => {
+    // Skip deregistered POCs - they should not appear anywhere
+    if (p.deregistered_at) return false;
+
     // SE filter
     if (filterState.selectedSEs.size > 0) {
       if (filterState.selectedSEs.has("__none__")) return false;
@@ -1238,8 +1241,11 @@ export function applyBaseFilters(pocs, users, pocUseCasesMap, asOfDate) {
 export function applyFilters(pocs, users, pocUseCasesMap, asOfDate) {
   console.log("[Filters] Applying filters to", pocs.length, "POCs");
   console.log("[Filters] View category:", filterState.viewCategory, "| Selected SEs:", filterState.selectedSEs.size);
-  
+
   const filtered = pocs.filter(p => {
+    // Skip deregistered POCs - they should not appear anywhere
+    if (p.deregistered_at) return false;
+
     // View category filter - this is the PRIMARY filter
     if (pocUseCasesMap && asOfDate) {
       const pocUcs = pocUseCasesMap.get(p.id) || [];

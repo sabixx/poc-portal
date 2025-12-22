@@ -1,5 +1,5 @@
 // main.js - Entry point for POC Portal
-// VERSION 2.0 - Session persistence + Logout + Settings
+// VERSION 2.1 - Session persistence + Logout + Settings + Create POC
 import { appState, loadSelectedSe } from "./state.js";
 import { initPocketBase, loginUser, fetchAllData, fetchAllComments, fetchAllFeatureRequests } from "./api.js";
 import {
@@ -14,8 +14,9 @@ import { renderUseCaseStats } from "./overview_stats.js";
 import { initLoadingOverlay, showLoading, hideLoading } from "./loading.js";
 import { showSettingsModal } from "./settings.js";
 import { initExecDashboard, refreshExecDashboard } from "./exec_dashboard.js";
+import { showCreatePocModal } from "./create_poc_modal.js";
 
-console.log("[POC-PORTAL] main.js VERSION 0.0.5 - Session persistence + Settings + Exec Dashboard");
+console.log("[POC-PORTAL] main.js VERSION 0.0.6 - Session persistence + Settings + Exec Dashboard + Create POC");
 
 //const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
 //const PB_BASE = "https://pocinsights.mimlab.io"; 
@@ -39,10 +40,11 @@ async function initializePortal(pb, user) {
   loginSection.classList.add("hidden");
   portalSection.classList.remove("hidden");
   
-  // Show logout, settings, and exec dashboard buttons
+  // Show logout, settings, exec dashboard, and create POC buttons
   document.getElementById("logout-btn")?.classList.remove("hidden");
   document.getElementById("settings-btn")?.classList.remove("hidden");
   document.getElementById("exec-dashboard-btn")?.classList.remove("hidden");
+  document.getElementById("create-poc-btn")?.classList.remove("hidden");
 
   // Update loading message
   showLoading("Loading data...", "Fetching POCs and users");
@@ -174,6 +176,7 @@ function handleLogout() {
   document.getElementById("logout-btn")?.classList.add("hidden");
   document.getElementById("settings-btn")?.classList.add("hidden");
   document.getElementById("exec-dashboard-btn")?.classList.add("hidden");
+  document.getElementById("create-poc-btn")?.classList.add("hidden");
   userInfo.textContent = "Not signed in";
   
   // Clear form
@@ -243,6 +246,38 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => showSettingsModal());
   }
+
+  // Setup create POC button
+  const createPocBtn = document.getElementById("create-poc-btn");
+  if (createPocBtn) {
+    createPocBtn.addEventListener("click", () => showCreatePocModal());
+  }
+
+  // Global refresh function for use after POC creation
+  window.refreshPocList = async function() {
+    console.log("[POC-PORTAL] Refreshing POC list...");
+    showLoading("Refreshing...", "Fetching updated data");
+
+    try {
+      const { users, pocs, puc, roleText } = await fetchAllData(pb, appState.currentUser);
+      appState.allUsers = users;
+      appState.allPocs = pocs;
+      appState.allPuc = puc;
+
+      // Re-render the view
+      const visibleSEs = buildVisibleSEs();
+      await renderSeFilters(visibleSEs);
+      await renderMainView();
+
+      hideLoading(true);
+      console.log("[POC-PORTAL] POC list refreshed successfully");
+    } catch (err) {
+      console.error("[POC-PORTAL] Failed to refresh:", err);
+      hideLoading(true);
+      // Fallback: reload page
+      window.location.reload();
+    }
+  };
 
   // Check for existing session
   if (pb.authStore.isValid) {

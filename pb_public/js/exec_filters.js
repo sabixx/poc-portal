@@ -500,6 +500,9 @@ export function applyExecFilters(pocs, pocFeatureRequestsByPoc, users, pocUseCas
   console.log("[ExecFilters] POCs with deal breakers:", dealBreakerCount);
 
   const filtered = pocs.filter(p => {
+    // Skip deregistered POCs - they should not appear anywhere
+    if (p.deregistered_at) return false;
+
     // POC Status filter
     if (execFilterState.pocStatus === 'open') {
       if (!isOpenPoc(p, pocUseCasesMap, asOfDate)) return false;

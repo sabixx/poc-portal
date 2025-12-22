@@ -35,9 +35,9 @@ export async function showSettingsModal() {
     `<option value="${r}" ${currentUser.region === r ? 'selected' : ''}>${r}</option>`
   ).join('');
   
-  // Get team members for managers
+  // Get team members for managers and AEs
   let teamManagementHtml = '';
-  if (currentUser.role === 'manager') {
+  if (currentUser.role === 'manager' || currentUser.role === 'ae') {
     const teamMembers = await getManagerTeamMembers(currentUser.id);
     const availableSEs = appState.allUsers.filter(u => u.role === 'se');
     
@@ -65,7 +65,7 @@ export async function showSettingsModal() {
               <option value="">-- Select SE to add --</option>
               ${availableSEs
                 .filter(se => !teamMembers.find(tm => tm.id === se.id))
-                .map(se => `<option value="${se.id}">${se.email || se.name} ${se.region ? `(${se.region})` : ''}</option>`)
+                .map(se => `<option value="${se.id}">${se.name || se.displayName || se.email || 'Unknown SE'} ${se.region ? `(${se.region})` : ''}</option>`)
                 .join('')
               }
             </select>
@@ -124,17 +124,32 @@ export async function showSettingsModal() {
 async function getManagerTeamMembers(managerId) {
   try {
     const mappings = await appState.pb.collection("manager_se_map").getFullList({
-      filter: `manager = "${managerId}"`,
-      expand: "se"
+      filter: `manager = "${managerId}"`
     });
-    
-    return mappings.map(m => ({
-      id: m.se,
-      mappingId: m.id,
-      name: m.expand?.se?.email || m.expand?.se?.name || 'Unknown',
-      email: m.expand?.se?.email || '',
-      region: m.expand?.se?.region || ''
-    }));
+
+    // Look up SE details from appState.allUsers instead of relying on expand
+    // m.se can be an array of SE IDs, so we need to flatten the results
+    const teamMembers = [];
+
+    for (const m of mappings) {
+      // Handle both array and single value for m.se
+      const seIds = Array.isArray(m.se) ? m.se : [m.se];
+
+      for (const seId of seIds) {
+        const seUser = appState.allUsers.find(u => u.id === seId);
+        if (seUser || seId) {
+          teamMembers.push({
+            id: seId,
+            mappingId: m.id,
+            name: seUser?.name || seUser?.displayName || seUser?.email || 'Unknown SE',
+            email: seUser?.email || '',
+            region: seUser?.region || ''
+          });
+        }
+      }
+    }
+
+    return teamMembers;
   } catch (err) {
     console.error("[Settings] Failed to load team members:", err);
     return [];
