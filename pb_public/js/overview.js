@@ -37,10 +37,10 @@ export function initOverview() {
 // ===== Build visible SEs (for backwards compatibility) ===============
 
 export function buildVisibleSEs() {
+  // Include any user who has POCs assigned to them (not just role="se")
+  // This allows managers with POCs to be visible in the SE filter
   const seIdSet = new Set(appState.allPocs.map((p) => p.se).filter(Boolean));
-  return appState.allUsers.filter(
-    (u) => u.role === "se" && seIdSet.has(u.id)
-  );
+  return appState.allUsers.filter((u) => seIdSet.has(u.id));
 }
 
 // ===== Initialize filters after login ================================

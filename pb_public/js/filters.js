@@ -63,9 +63,12 @@ export async function loadManagerSeMapping(pb, currentUser) {
       });
       
       console.log("[Filters] Found manager_se_map entries:", mappings.length);
-      
+
+      // Always include the manager's own ID so their own POCs show up
+      filterState.allowedSeIds = new Set();
+      filterState.allowedSeIds.add(currentUser.id);
+
       if (mappings.length > 0) {
-        filterState.allowedSeIds = new Set();
         mappings.forEach(m => {
           console.log("[Filters] Mapping entry:", m);
           if (Array.isArray(m.se)) {
@@ -74,11 +77,8 @@ export async function loadManagerSeMapping(pb, currentUser) {
             filterState.allowedSeIds.add(m.se);
           }
         });
-        console.log("[Filters] Manager's default SEs:", Array.from(filterState.allowedSeIds));
-      } else {
-        filterState.allowedSeIds = null;
-        console.log("[Filters] No SE mapping found - no default selection");
       }
+      console.log("[Filters] Manager's default SEs (including self):", Array.from(filterState.allowedSeIds));
     } catch (e) {
       console.error("[Filters] Failed to load manager-SE mapping:", e);
       filterState.allowedSeIds = null;
@@ -91,9 +91,9 @@ export async function loadManagerSeMapping(pb, currentUser) {
         filter: `ae = "${currentUser.id}"`,
         $autoCancel: false
       });
-      
+
       console.log("[Filters] Found ae_se_map entries:", mappings.length);
-      
+
       if (mappings.length > 0) {
         filterState.allowedSeIds = new Set();
         mappings.forEach(m => {
