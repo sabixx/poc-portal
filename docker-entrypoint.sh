@@ -47,7 +47,7 @@ trap 'echo "[ENTRYPOINT] Caught signal, shutting down..."; \
       kill "$PB_PID" "$API_PID" "$TTYD_PID" 2>/dev/null || true; \
       exit 0' INT TERM
 
-echo 'version 0.0.3'
+echo 'version 0.0.5'
 
 # --- Monitor: exit when any child dies, then kill the rest ---
 EXIT_CODE=0
