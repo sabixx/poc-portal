@@ -86,6 +86,8 @@ API_SHARED_SECRET = os.getenv("API_SHARED_SECRET")
 
 SESSION = requests.Session()
 AUTH_TOKEN: Optional[str] = None
+AUTH_TOKEN_TIME: Optional[float] = None  # timestamp when token was obtained
+AUTH_TOKEN_MAX_AGE = 3600  # refresh token every hour (PB default expiry is much longer, but refresh early)
 
 app = Flask(__name__)
 
@@ -135,11 +137,23 @@ def log_response_info(response):
 # ---------------------------------------------------------------------------
 
 
-def service_login():
+def service_login(force: bool = False):
     """Log in as PocketBase SUPERUSER and set the Bearer token on the session."""
-    global AUTH_TOKEN
-    if AUTH_TOKEN:
-        return
+    global AUTH_TOKEN, AUTH_TOKEN_TIME
+    import time as _time
+
+    # Check if token needs refresh (expired or too old)
+    if AUTH_TOKEN and not force:
+        token_age = _time.time() - (AUTH_TOKEN_TIME or 0)
+        if token_age < AUTH_TOKEN_MAX_AGE:
+            logger.debug(f"[service_login] Using cached auth token (age: {token_age:.0f}s)")
+            return
+        else:
+            logger.info(f"[service_login] Token expired (age: {token_age:.0f}s > {AUTH_TOKEN_MAX_AGE}s), refreshing...")
+            AUTH_TOKEN = None
+
+    reason = "forced refresh" if force else ("expired" if AUTH_TOKEN_TIME else "initial login")
+    logger.info(f"[service_login] Authenticating with PocketBase at {PB_BASE} (reason: {reason})")
 
     try:
         resp = SESSION.post(
@@ -147,15 +161,61 @@ def service_login():
             json={"identity": SERVICE_EMAIL, "password": SERVICE_PASSWORD},
             timeout=10,
         )
+        logger.info(f"[service_login] Auth response status: {resp.status_code}")
+
         resp.raise_for_status()
         data = resp.json()
         token = data["token"]
         AUTH_TOKEN = token
+        AUTH_TOKEN_TIME = _time.time()
         SESSION.headers["Authorization"] = f"Bearer {token}"
-        logger.info(f"Service logged in as SUPERUSER {SERVICE_EMAIL}")
+        logger.info(f"[service_login] Successfully logged in as SUPERUSER {SERVICE_EMAIL}")
     except Exception as e:
-        logger.error(f"Failed to login to PocketBase: {e}")
+        logger.error(f"[service_login] Failed to login to PocketBase: {repr(e)}")
         raise
+
+
+def verify_pocketbase_health() -> bool:
+    """Check if PocketBase is responding and can read data. Auto-refreshes token if stale."""
+    try:
+        resp = SESSION.get(f"{PB_BASE}/api/health", timeout=5)
+        if resp.status_code != 200:
+            logger.error(f"[verify_pocketbase_health] Health check failed: {resp.status_code} - {resp.text}")
+            return False
+
+        # Also verify we can query the pocs collection
+        service_login()
+        pocs_resp = SESSION.get(f"{PB_BASE}/api/collections/pocs/records", params={"perPage": 1}, timeout=5)
+        if pocs_resp.status_code != 200:
+            logger.error(f"[verify_pocketbase_health] POCs query failed: {pocs_resp.status_code} - {pocs_resp.text}")
+            return False
+
+        pocs_data = pocs_resp.json()
+        total = pocs_data.get("totalItems", -1)
+        logger.info(f"[verify_pocketbase_health] PocketBase healthy, can see {total} POCs")
+
+        # If we see 0 POCs, the token might be expired/stale - force refresh and retry
+        if total == 0:
+            logger.warning(f"[verify_pocketbase_health] 0 POCs detected, forcing token refresh...")
+            service_login(force=True)
+            retry_resp = SESSION.get(f"{PB_BASE}/api/collections/pocs/records", params={"perPage": 1}, timeout=5)
+            if retry_resp.status_code == 200:
+                retry_data = retry_resp.json()
+                retry_total = retry_data.get("totalItems", -1)
+                logger.info(f"[verify_pocketbase_health] After token refresh: can see {retry_total} POCs")
+                if retry_total > 0:
+                    return True
+                else:
+                    logger.error(f"[verify_pocketbase_health] Still 0 POCs after token refresh - genuine data issue")
+                    return False
+            else:
+                logger.error(f"[verify_pocketbase_health] Retry after refresh failed: {retry_resp.status_code}")
+                return False
+
+        return True
+    except Exception as e:
+        logger.error(f"[verify_pocketbase_health] Exception during health check: {repr(e)}")
+        return False
 
 
 def check_api_key() -> bool:
@@ -203,11 +263,13 @@ def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dic
     resp.raise_for_status()
     items = resp.json().get("items", [])
 
+    logger.info(f"[get_or_create_user_se] User lookup returned {len(items)} items for {email_lower}")
+
     if items:
         user = items[0]
         user_id = user["id"]
         current_role = user.get("role")
-        
+
         logger.info(f"[get_or_create_user_se] Found existing user: id={user_id}, role={current_role}")
 
         if not current_role:
@@ -220,7 +282,7 @@ def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dic
         return {"id": user_id, "is_new": False, "email": email_lower}
 
     # User not found -> create
-    logger.info(f"[get_or_create_user_se] Creating new SE user: {email_lower}")
+    logger.warning(f"[get_or_create_user_se] No user found for {email_lower}, will create new user")
     password = _generate_random_password()
     name = display_name or email_lower.split("@")[0].replace(".", " ").title()
     
@@ -263,74 +325,133 @@ def get_or_create_user_se(email: str, display_name: Optional[str] = None) -> Dic
 def find_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     """Find a user by email. Returns user dict if found, None otherwise."""
     service_login()
-    
+
     email_lower = email.strip().lower()
     url = f"{PB_BASE}/api/collections/users/records"
-    
+
+    logger.info(f"[find_user_by_email] Searching for email: {email_lower}")
+
     resp = SESSION.get(
         url,
         params={"filter": f'email~"{email_lower}"', "perPage": 1},
         timeout=10,
     )
-    
+
+    logger.info(f"[find_user_by_email] Response status: {resp.status_code}")
+
     if resp.status_code >= 400:
+        logger.error(f"[find_user_by_email] Error response: {resp.text}")
         return None
-    
+
     items = resp.json().get("items", [])
+    logger.info(f"[find_user_by_email] Found {len(items)} users")
+
+    if items:
+        logger.info(f"[find_user_by_email] Returning user: {items[0].get('id')}, {items[0].get('email')}")
+    else:
+        logger.warning(f"[find_user_by_email] No user found for email: {email_lower}")
+
     return items[0] if items else None
 
 
 def find_poc_by_composite_key(sa_email: str, customer_name: str, product: str) -> Optional[Dict[str, Any]]:
     """Find an existing POC by the composite key: se.email + customer_name + product."""
-    logger.info(f"[find_poc_by_composite_key] Looking for POC: sa_email~{sa_email}, customer={customer_name}, product={product}")
-    
+    logger.info(f"[find_poc_by_composite_key] Looking for POC: sa_email={sa_email}, customer={customer_name}, product={product}")
+
     service_login()
 
     user = find_user_by_email(sa_email)
     if not user:
-        logger.info(f"[find_poc_by_composite_key] No user found for email {sa_email}")
+        logger.warning(f"[find_poc_by_composite_key] No user found for email {sa_email}")
         return None
-    
+
     user_id = user["id"]
+    logger.info(f"[find_poc_by_composite_key] Found user {sa_email} -> id={user_id}")
+
     customer_escaped = customer_name.replace('"', '\\"')
     product_escaped = product.replace('"', '\\"')
 
     filter_expr = f'se="{user_id}" && customer_name="{customer_escaped}" && product="{product_escaped}"'
+    url = f"{PB_BASE}/api/collections/pocs/records"
+
+    logger.info(f"[find_poc_by_composite_key] GET {url} with filter: {filter_expr}")
 
     resp = SESSION.get(
-        f"{PB_BASE}/api/collections/pocs/records",
+        url,
         params={"filter": filter_expr, "perPage": 1},
         timeout=10,
     )
 
+    logger.info(f"[find_poc_by_composite_key] Response status: {resp.status_code}")
+
     if resp.status_code >= 400:
+        logger.error(f"[find_poc_by_composite_key] Error response: {resp.status_code} - {resp.text}")
         return None
 
-    items = resp.json().get("items", [])
-    
+    data = resp.json()
+    items = data.get("items", [])
+    total_items = data.get("totalItems", 0)
+
+    logger.info(f"[find_poc_by_composite_key] Found {len(items)} items, totalItems={total_items}")
+
     if items:
         poc = items[0]
-        logger.info(f"[find_poc_by_composite_key] Found POC: poc_uid={poc.get('poc_uid')}")
+        logger.info(f"[find_poc_by_composite_key] Found POC: id={poc.get('id')}, poc_uid={poc.get('poc_uid')}")
         return poc
-    
+
+    logger.info(f"[find_poc_by_composite_key] No POC found for composite key")
     return None
 
 
 def find_poc_by_uid(poc_uid: str) -> Optional[Dict[str, Any]]:
     """Find a POC by its poc_uid."""
+    logger.info(f"[find_poc_by_uid] Searching for poc_uid: {poc_uid}")
+
     service_login()
 
+    filter_param = f'poc_uid="{poc_uid}"'
+    url = f"{PB_BASE}/api/collections/pocs/records"
+
+    logger.info(f"[find_poc_by_uid] GET {url} with filter: {filter_param}")
+    logger.info(f"[find_poc_by_uid] Session auth header present: {'Authorization' in SESSION.headers}")
+
     resp = SESSION.get(
-        f"{PB_BASE}/api/collections/pocs/records",
-        params={"filter": f'poc_uid="{poc_uid}"', "perPage": 1},
+        url,
+        params={"filter": filter_param, "perPage": 1},
         timeout=10,
     )
-    
+
+    logger.info(f"[find_poc_by_uid] Response status: {resp.status_code}")
+    logger.info(f"[find_poc_by_uid] Response body: {resp.text[:500]}")
+
     if resp.status_code >= 400:
+        logger.error(f"[find_poc_by_uid] Error response for {poc_uid}: {resp.status_code} - {resp.text}")
         return None
-        
-    items = resp.json().get("items", [])
-    return items[0] if items else None
+
+    data = resp.json()
+    items = data.get("items", [])
+    total_items = data.get("totalItems", 0)
+
+    logger.info(f"[find_poc_by_uid] Found {len(items)} items, totalItems={total_items}")
+
+    if items:
+        poc = items[0]
+        logger.info(f"[find_poc_by_uid] Returning POC: id={poc.get('id')}, poc_uid={poc.get('poc_uid')}")
+        return poc
+    else:
+        # Diagnostic: check if PocketBase can see ANY pocs
+        logger.warning(f"[find_poc_by_uid] No POC found for {poc_uid}, running diagnostic...")
+        try:
+            diag_resp = SESSION.get(f"{PB_BASE}/api/collections/pocs/records", params={"perPage": 1}, timeout=5)
+            diag_data = diag_resp.json()
+            diag_total = diag_data.get("totalItems", 0)
+            logger.warning(f"[find_poc_by_uid] DIAGNOSTIC: PocketBase sees {diag_total} total POCs in collection")
+            if diag_total == 0:
+                logger.error(f"[find_poc_by_uid] CRITICAL: PocketBase cannot see ANY POCs - likely DB sync issue!")
+        except Exception as e:
+            logger.error(f"[find_poc_by_uid] Diagnostic check failed: {e}")
+
+        return None
 
 
 def get_or_create_usecase(
@@ -566,6 +687,12 @@ def api_register():
         }), 400
 
     try:
+        # Early health check - log PocketBase state before processing
+        logger.info(f"[register] Starting registration for sa_email={sa_email}, prospect={prospect}, product={product}")
+        pb_healthy = verify_pocketbase_health()
+        if not pb_healthy:
+            logger.error(f"[register] PocketBase health check FAILED before processing registration")
+
         service_login()
 
         # Check if POC already exists
@@ -626,11 +753,19 @@ def api_register():
         if data.get("poc_end_date"):
             payload["poc_end_date_plan"] = data["poc_end_date"]
 
+        logger.info(f"[register] Creating POC with payload: {json.dumps(payload)}")
+        logger.info(f"[register] POST URL: {PB_BASE}/api/collections/pocs/records")
+        logger.info(f"[register] Session headers: {dict(SESSION.headers)}")
+
         resp = SESSION.post(
             f"{PB_BASE}/api/collections/pocs/records",
             json=payload,
             timeout=10,
         )
+
+        logger.info(f"[register] PocketBase response status: {resp.status_code}")
+        logger.info(f"[register] PocketBase response body: {resp.text}")
+
         resp.raise_for_status()
 
         logger.info(f"Created new POC: {poc_uid}")
@@ -765,10 +900,17 @@ def api_heartbeat():
         return jsonify({"error": "missing_use_cases", "details": "use_cases array is required"}), 400
 
     try:
-        service_login()
+        # Early health check - log PocketBase state before processing
+        logger.info(f"[heartbeat] Starting heartbeat for POC {poc_uid}")
+        pb_healthy = verify_pocketbase_health()
+        if not pb_healthy:
+            logger.error(f"[heartbeat] PocketBase health check FAILED before processing heartbeat for {poc_uid}")
+            # Continue anyway to see what happens, but log the issue
 
         poc = find_poc_by_uid(poc_uid)
         if not poc:
+            # Log additional context when POC not found
+            logger.error(f"[heartbeat] POC NOT FOUND: {poc_uid} - pb_healthy_before={pb_healthy}")
             return jsonify({"error": "poc_not_found", "details": f"POC {poc_uid} not found"}), 404
 
         poc_id = poc["id"]
@@ -1110,7 +1252,7 @@ if __name__ == "__main__":
     port = int(os.getenv("API_PORT", "8000"))
 
     logger.info("=" * 70)
-    logger.info("POC Portal API - VERSION 3.0")
+    logger.info("POC Portal API - VERSION 3.2")
     logger.info("=" * 70)
     logger.info(f"  PB_BASE:           {PB_BASE}")
     logger.info(f"  SERVICE_EMAIL:     {SERVICE_EMAIL}")
