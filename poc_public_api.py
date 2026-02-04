@@ -562,19 +562,19 @@ def get_or_create_poc_usecase(
     poc_id: str,
     uc_id: str,
     order: Optional[int] = None,
-    is_active: bool = True,
-    is_completed: bool = False,
+    is_active: Optional[bool] = None,
+    is_completed: Optional[bool] = None,
 ) -> str:
     """
     Get or create the poc_use_cases link between a POC and a use case.
-    
+
     Args:
         poc_id: POC record ID
         uc_id: use_case record ID
         order: Display order from config.json useCaseOrder
-        is_active: Whether the use case is active
-        is_completed: Whether the use case is completed
-    
+        is_active: Whether the use case is active (only updated if explicitly provided)
+        is_completed: Whether the use case is completed (only updated if explicitly provided)
+
     Returns the poc_use_case record ID.
     """
     service_login()
@@ -590,21 +590,21 @@ def get_or_create_poc_usecase(
     if items:
         existing = items[0]
         puc_id = existing["id"]
-        
-        # Build update payload
+
+        # Build update payload - only update fields that are explicitly provided
         update_payload: Dict[str, Any] = {}
-        
+
         if order is not None and existing.get("order") != order:
             update_payload["order"] = order
-        if existing.get("is_active") != is_active:
+        if is_active is not None and existing.get("is_active") != is_active:
             update_payload["is_active"] = is_active
-        if existing.get("is_completed") != is_completed:
+        if is_completed is not None and existing.get("is_completed") != is_completed:
             update_payload["is_completed"] = is_completed
             if is_completed:
                 update_payload["completed_at"] = datetime.utcnow().isoformat() + "Z"
             else:
                 update_payload["completed_at"] = None
-        
+
         if update_payload:
             SESSION.patch(
                 f"{PB_BASE}/api/collections/poc_use_cases/records/{puc_id}",
@@ -612,21 +612,21 @@ def get_or_create_poc_usecase(
                 timeout=10,
             )
             logger.info(f"Updated poc_use_case {puc_id}: {update_payload}")
-        
+
         return puc_id
 
-    # Create new
+    # Create new - use defaults for unspecified fields
     create_payload: Dict[str, Any] = {
         "poc": poc_id,
         "use_case": uc_id,
-        "is_active": is_active,
-        "is_completed": is_completed,
+        "is_active": is_active if is_active is not None else True,
+        "is_completed": is_completed if is_completed is not None else False,
     }
-    
+
     if order is not None:
         create_payload["order"] = order
-    
-    if is_completed:
+
+    if create_payload["is_completed"]:
         create_payload["completed_at"] = datetime.utcnow().isoformat() + "Z"
 
     resp = SESSION.post(

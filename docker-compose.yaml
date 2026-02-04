@@ -1,0 +1,16 @@
+services:
+  pocinsights:
+    build: .
+    ports:
+      - "8090:8090"
+      - "5001:5001"
+      - "8000:8000"
+    environment:
+      - PB_URL=http://127.0.0.1:8090
+      - PB_ADMIN_EMAIL=jens.sabitzer@cyberark.com
+      - PB_ADMIN_PASSWORD=JQH5hfa@pfn9dvc!cvy
+      - PRODUCTBOARD_TOKEN=eyJ0eXAiOiJKV1QiLCJraWQiOiI2ZDI0MmY3ZDgzZWNlYTNhYWJiZmVkYWE0YjE2YzFiYTZjZWIzMzMyYjhiN2MwYWVhYzM4Y2U0YTc2NTFhZTdhIiwiYWxnIjoiUlM1MTIifQ.eyJpYXQiOjE3NjQ0MTAyOTEsImlzcyI6ImNlZWQ5OTU2LTI1NWUtNGU4YS1hYWI5LWYyYWI0ZWJhZGM4MiIsInN1YiI6IjE1NjEwMjYiLCJyb2xlIjoiYWRtaW4iLCJhdWQiOiJodHRwczovL2FwaS5wcm9kdWN0Ym9hcmQuY29tIiwidXNlcl9pZCI6MTU2MTAyNiwic3BhY2VfaWQiOiIzNjA0MDQiLCJyZWdpb24iOiJ1cyJ9.jWskwnlsXCd2mKh3fifspsyAtWhUZDxARO2VKBCbyKGGtPnZKEB5vfZ65RPuUZki-qDtF2wD1F_Qs2HCeFSdyRpyhaA4M5V78uMY3qT-_nKrxsByi75NAPx3wczKP1w-aiUQMfrvMDnuFfYVOB83h0WRqsvYM3zmefINGrGR0bWqawGsduJ9JZZ6PcigAMwgc2e88b7T94ZGSJYlValg_d_GoIuho7gzp4sfseXkTGZA_7_FyIIiCiJo8nFbVY4_fML1V_WaCs7Aj3jpkCMIa3aOrO3R8i7-gSP-5gXarUGgklX5Is8-On_dPFhnzvUwxf4y75yzTUodr4bkm82o7Q
+      - API_SHARED_SECRET=supersecret-api-key
+      - TTYD_CREDENTIALS=ttyd_vencon:pass
+    volumes:
+      - ./pb_data:/app/pb_data
