@@ -5,7 +5,7 @@ import { appState } from "./state.js";
 /**
  * Renders the compact metrics section with progress, stats, and toggle button
  */
-export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCount, erCount = 0, showProductBoardBtn = false }) {
+export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCount, erCount = 0, showProductBoardBtn = false, showRemoveBtn = false }) {
   const completionPct = totalUc > 0 ? Math.round((completedUc / totalUc) * 100) : 0;
 
   return `
@@ -21,7 +21,7 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
           <div class="poc-progress-bar-fill" style="width: ${completionPct}%;"></div>
         </div>
       </div>
-      
+
       <div class="poc-stats-row">
         <div class="poc-stat-item">
           <span class="poc-stat-icon">⭐</span>
@@ -39,7 +39,7 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
           <span class="poc-stat-label">total UCs</span>
         </div>
       </div>
-      
+
       <div class="poc-actions-row">
         <button type="button" class="poc-toggle-details-btn${erCount > 0 ? ' poc-toggle-details-btn--has-ers' : ''}" data-er-count="${erCount}">
           ${erCount > 0 ? `Use Cases & Requests (${erCount})` : 'Show Use Case Details'}
@@ -47,6 +47,11 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
         ${showProductBoardBtn ? `
           <button type="button" class="poc-link-productboard-btn" title="Link to ProductBoard">
             🔗 ProductBoard
+          </button>
+        ` : ''}
+        ${showRemoveBtn ? `
+          <button type="button" class="poc-remove-btn" title="Remove POC">
+            Remove
           </button>
         ` : ''}
       </div>
@@ -112,10 +117,10 @@ export function renderUseCaseDetails(pocUcs, pocId, featureRequests = [], custom
 }
 
 /**
- * Attaches event listeners for metrics section (toggle, ProductBoard)
+ * Attaches event listeners for metrics section (toggle, ProductBoard, Remove)
  * NOW ACCEPTS onRefresh callback
  */
-export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLinkModal, pb, onRefresh = null) {  
+export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLinkModal, pb, onRefresh = null) {
   // Toggle use case details
   const toggleBtn = card.querySelector(".poc-toggle-details-btn");
   const detailsEl = card.querySelector(".poc-details");
@@ -125,7 +130,7 @@ export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLin
       evt.stopPropagation();
       const isHidden = detailsEl.classList.contains("hidden");
       detailsEl.classList.toggle("hidden", !isHidden);
-      
+
       const erCount = parseInt(toggleBtn.dataset.erCount) || 0;
       if (isHidden) {
         toggleBtn.textContent = erCount > 0 ? "Hide Use Cases & Requests" : "Hide Use Case Details";
@@ -142,6 +147,33 @@ export function attachMetricsListeners(card, pocId, pbLinks, showProductBoardLin
       evt.stopPropagation();
       // Pass refresh callback to modal
       showProductBoardLinkModal(pb, pocId, null, onRefresh);
+    });
+  }
+
+  // Remove button - soft deletes the POC
+  const removeBtn = card.querySelector(".poc-remove-btn");
+  if (removeBtn) {
+    removeBtn.addEventListener("click", async (evt) => {
+      evt.stopPropagation();
+
+      if (!confirm("Are you sure you want to remove this POC? This action cannot be undone.")) {
+        return;
+      }
+
+      try {
+        await appState.pb.collection("pocs").update(pocId, {
+          is_active: false,
+          deregistered_at: new Date().toISOString()
+        });
+
+        // Fade out and remove card
+        card.style.transition = "opacity 0.3s ease-out";
+        card.style.opacity = "0";
+        setTimeout(() => card.remove(), 300);
+      } catch (err) {
+        console.error("[POC-Metrics] Failed to remove POC:", err);
+        alert("Failed to remove POC. Please try again.");
+      }
     });
   }
 

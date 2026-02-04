@@ -12,7 +12,7 @@ import {
   attachMetricsListeners
 } from "./poc_metrics.js";
 
-console.log('[POC-Card-InReview] VERSION 1.0 - Dedicated In Review card with ProductBoard');
+console.log('[POC-Card-InReview] VERSION 2.0 - Added remove button - Dedicated In Review card with ProductBoard');
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -149,6 +149,10 @@ export async function renderInReviewPocCard(p) {
     currentUser.role === "pm" ||
     (currentUser.role === "se" && isOwnPoc)
   );
+  const canRemove = currentUser && (
+    currentUser.role === "manager" ||
+    (currentUser.role === "se" && isOwnPoc)
+  );
 
   // ProductBoard links from cache (not from p.productboard_links)
   const pbLinks = getProductBoardLinksFromCache(p.id);
@@ -179,8 +183,6 @@ export async function renderInReviewPocCard(p) {
           </span>
           ${pocDurationLabel !== "-" ? `<span class="poc-meta-item"><strong>Duration:</strong> ${pocDurationLabel}${closeTimingLabel ? ` <span class="poc-timing-badge">${timingIcon === "target" ? "T" : timingIcon === "warning" ? "!" : "v"} ${closeTimingLabel}</span>` : ""}</span>` : ""}
         </div>
-
-        ${pbBadgesHtml}
       </div>
 
       <div class="poc-header-dates-compact">
@@ -203,19 +205,10 @@ export async function renderInReviewPocCard(p) {
     avgRating,
     feedbackCount,
     erCount,
-    showProductBoardBtn: true  // Always show ProductBoard button for In Review
+    showProductBoardBtn: true,  // Always show ProductBoard button for In Review
+    showRemoveBtn: canRemove
   });
 
-  // Feature request summary
-  let frSummaryHtml = '';
-  if (featureRequests.length > 0) {
-    frSummaryHtml = `
-      <div class="fr-summary fr-summary-compact" style="cursor: pointer;">
-        <span class="fr-summary-icon">link</span>
-        <span class="fr-summary-count">${featureRequests.length} Feature Request${featureRequests.length !== 1 ? 's' : ''}</span>
-      </div>
-    `;
-  }
 
   // ----- OUTCOME block (editing) --------------------------
   let outcomeHtml = "";
@@ -259,10 +252,6 @@ export async function renderInReviewPocCard(p) {
         </label>
 
         <div class="poc-outcome-actions">
-          <button type="button" class="poc-link-productboard-btn poc-outcome-pb-btn" data-poc-id="${p.id}">
-            link ProductBoard
-          </button>
-          <div class="poc-outcome-spacer"></div>
           <button type="button" class="poc-outcome-save-btn">
             Save Changes
           </button>
@@ -285,7 +274,6 @@ export async function renderInReviewPocCard(p) {
   const bodyHtml = `
     <div class="poc-in-review-body">
       ${useCaseMetricsHtml}
-      ${frSummaryHtml}
       ${outcomeHtml}
       ${renderUseCaseDetails(pocUcs, p.id, featureRequests, customerName)}
     </div>

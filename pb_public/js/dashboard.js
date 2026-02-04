@@ -87,7 +87,7 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
           })}
           ${renderMetricCard({
             id: "at_risk_prep",
-            label: "At Risk (Prep)",
+            label: "At Risk (Customer Preperation)",
             count: metrics.atRiskPrep.length,
             icon: "🎯",
             color: "orange",

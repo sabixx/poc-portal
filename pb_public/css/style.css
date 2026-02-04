@@ -1193,6 +1193,24 @@ input:focus {
   border-color: #2868a8;
 }
 
+/* Remove POC button */
+.poc-remove-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: #dc2626;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.poc-remove-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: #dc2626;
+}
+
 /* Use Case Row styling fixes */
 .poc-uc-row {
   transition: background-color 0.15s ease;
@@ -1279,6 +1297,17 @@ input:focus {
 :root[data-theme="dark"] .poc-toggle-details-btn:hover {
   background: var(--accent-soft);
   color: var(--fg);
+}
+
+:root[data-theme="dark"] .poc-remove-btn {
+  background: transparent;
+  border-color: var(--border-subtle);
+  color: #f87171;
+}
+
+:root[data-theme="dark"] .poc-remove-btn:hover {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: #f87171;
 }
 
 :root[data-theme="dark"] .uc-title-text {

@@ -582,7 +582,7 @@ function renderStatusOptions() {
   const statuses = [
     { id: 'on_track', label: 'On Track', icon: '✅', color: 'success' },
     { id: 'at_risk', label: 'At Risk', icon: '⚠️', color: 'warning' },
-    { id: 'at_risk_prep', label: 'At Risk (Prep)', icon: '🎯', color: 'orange' },
+    { id: 'at_risk_prep', label: 'At Risk (Customer Preparation)', icon: '🎯', color: 'orange' },
     { id: 'at_risk_stalled', label: 'At Risk (Stalled)', icon: '⏸️', color: 'orange' },
     { id: 'overdue', label: 'Overdue', icon: '🔴', color: 'danger' },
     { id: 'in_review', label: 'In Review', icon: '📋', color: 'info' },
@@ -672,7 +672,7 @@ function getSelectedStatusLabel() {
   const statusLabels = {
     'on_track': 'On Track',
     'at_risk': 'At Risk',
-    'at_risk_prep': 'At Risk (Prep)',
+    'at_risk_prep': 'At Risk (Customer Preparation)',
     'at_risk_stalled': 'At Risk (Stalled)',
     'overdue': 'Overdue',
     'in_review': 'In Review',
@@ -1067,7 +1067,7 @@ function updateFilterSummary(ses, products, regions) {
     const statusLabels = {
       'on_track': '✅ On Track',
       'at_risk': '⚠️ At Risk',
-      'at_risk_prep': '🎯 At Risk (Prep)',
+      'at_risk_prep': '🎯 At Risk (Customer Preparation)',
       'at_risk_stalled': '⏸️ At Risk (Stalled)',
       'overdue': '🔴 Overdue',
       'in_review': '📋 In Review',

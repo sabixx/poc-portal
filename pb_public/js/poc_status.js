@@ -257,7 +257,7 @@ export function computePocStatus(p, pocUcs, asOfDate) {
     statusLabel = "Overdue";
   } else if (prepInfo.isAtRisk) {
     status = "at_risk_prep";
-    statusLabel = "At Risk (Prep)";
+    statusLabel = "At Risk (Customer Preparation)";
   } else if (stalledInfo.isStalled) {
     status = "at_risk_stalled";
     statusLabel = "At Risk (Stalled)";

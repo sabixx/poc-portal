@@ -12,7 +12,7 @@ import {
   attachMetricsListeners 
 } from "./poc_metrics.js";
 
-console.log('[POC-Card-Closed] VERSION 4.0 - Performance optimized with cached data');
+console.log('[POC-Card-Closed] VERSION 5.0 - Added remove button - Performance optimized with cached data');
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 const HOURS_PER_DAY = 8;
@@ -204,6 +204,7 @@ export async function renderClosedPocCard(p) {
     currentUser.role === "pm" ||
     (currentUser.role === "se" && isOwnPoc)
   );
+  const canRemove = currentUser && currentUser.role === "manager";
 
   const commClass = commercialOutcomeClass(commercialResult);
   const techClass = technicalOutcomeClass(technicalResult);
@@ -239,10 +240,8 @@ export async function renderClosedPocCard(p) {
           </span>
           ${pocDurationLabel !== "–" ? `<span class="poc-meta-item"><strong>Duration:</strong> ${pocDurationLabel}${closeTimingLabel ? ` <span class="poc-timing-badge">${timingIcon} ${closeTimingLabel}</span>` : ""}</span>` : ""}
         </div>
-
-        ${pbBadgesHtml}
       </div>
-      
+
       <div class="poc-header-dates-compact">
         <div class="poc-date-compact">
           <span class="poc-date-label">Started</span>
@@ -268,18 +267,9 @@ export async function renderClosedPocCard(p) {
     avgRating,
     feedbackCount,
     erCount,
-    showProductBoardBtn: true  // Always show ProductBoard button for Closed POCs
+    showProductBoardBtn: true,  // Always show ProductBoard button for Closed POCs
+    showRemoveBtn: canRemove
   });
-  let frSummaryHtml = '';
-  if (featureRequests.length > 0) {
-    // Render sync version using cached data
-    frSummaryHtml = `
-      <div class="fr-summary fr-summary-compact" style="cursor: pointer;">
-        <span class="fr-summary-icon">🔗</span>
-        <span class="fr-summary-count">${featureRequests.length} Feature Request${featureRequests.length !== 1 ? 's' : ''}</span>
-      </div>
-    `;
-  }
 
   // ----- OUTCOME block (edit vs read-only) --------------------------
   let outcomeHtml = "";
@@ -323,10 +313,6 @@ export async function renderClosedPocCard(p) {
         </label>
         
         <div class="poc-outcome-actions">
-          <button type="button" class="poc-link-productboard-btn poc-outcome-pb-btn" data-poc-id="${p.id}">
-            🔗 ProductBoard
-          </button>
-          <div class="poc-outcome-spacer"></div>
           <button type="button" class="poc-outcome-save-btn">
             Save Changes
           </button>
@@ -361,7 +347,6 @@ export async function renderClosedPocCard(p) {
   const bodyHtml = `
     <div class="poc-closed-body">
       ${useCaseMetricsHtml}
-      ${frSummaryHtml}
       ${outcomeHtml}
       ${renderUseCaseDetails(pocUcs, p.id, featureRequests, customerName)}
     </div>

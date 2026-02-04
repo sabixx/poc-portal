@@ -12,7 +12,7 @@ import {
   attachMetricsListeners 
 } from "./poc_metrics.js";
 
-console.log('[POC-Card-Active] VERSION 11.0 - Added stalled engagement indicator');
+console.log('[POC-Card-Active] VERSION 12.0 - Added remove button for managers/SEs');
 
 // -----------------------------------------------------------------------------
 // Shared helpers
@@ -311,6 +311,14 @@ export async function renderActivePocCard(p) {
   // Get ER count for the button
   const erCount = featureRequests.length;
 
+  // Check if current user can remove this POC (managers or SE who owns it)
+  const currentUser = appState.currentUser;
+  const isOwnPoc = currentUser && p.se === currentUser.id;
+  const canRemove = currentUser && (
+    currentUser.role === "manager" ||
+    (currentUser.role === "se" && isOwnPoc)
+  );
+
   // Render metrics HTML with erCount
   const metricsHtml = renderPocMetrics({
     completedUc,
@@ -318,7 +326,8 @@ export async function renderActivePocCard(p) {
     avgRating,
     feedbackCount,
     erCount,
-    showProductBoardBtn: true
+    showProductBoardBtn: true,
+    showRemoveBtn: canRemove
   });
 
   // Render COMBINED Use Cases + Feature Requests section
