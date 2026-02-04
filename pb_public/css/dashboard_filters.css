@@ -1195,17 +1195,18 @@
 }
 
 /* ================================================================
-   VIEW CATEGORY TABS
+   VIEW CATEGORY TABS - Enhanced
    ================================================================ */
 
 .dashboard-view-tabs {
   display: flex;
-  gap: 8px;
-  padding: 4px;
+  gap: 0;
+  padding: 0;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  overflow: hidden;
 }
 
 .view-tab {
@@ -1213,29 +1214,63 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 18px 24px;
   background: transparent;
   border: none;
-  border-radius: 10px;
+  border-right: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   color: var(--fg-muted);
+  position: relative;
+}
+
+.view-tab:last-child {
+  border-right: none;
+}
+
+.view-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 3px;
+  background: var(--accent);
+  transition: width 0.25s ease;
+  border-radius: 3px 3px 0 0;
 }
 
 .view-tab:hover {
-  background: var(--bg-hover);
+  background: var(--accent-soft);
   color: var(--fg);
 }
 
+.view-tab:hover::after {
+  width: 40%;
+}
+
 .view-tab.active {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.view-tab.active::after {
+  width: 80%;
 }
 
 .view-tab-icon {
-  font-size: 20px;
+  font-size: 22px;
+  transition: transform 0.2s ease;
+}
+
+.view-tab:hover .view-tab-icon {
+  transform: scale(1.1);
+}
+
+.view-tab.active .view-tab-icon {
+  transform: scale(1.15);
 }
 
 .view-tab-label {
@@ -1244,16 +1279,17 @@
 }
 
 .view-tab-count {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--accent);
-  padding: 4px 10px;
-  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg-muted);
+  padding: 4px 12px;
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 700;
+  transition: all 0.2s ease;
 }
 
 .view-tab.active .view-tab-count {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--accent);
   color: white;
 }
 

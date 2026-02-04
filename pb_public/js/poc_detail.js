@@ -5,6 +5,8 @@ import {
   mapStateToLabel,
   getPucForPoc,
 } from "./helpers.js";
+import { navigateToDashboard, navigateToPocDetail } from "./router.js";
+import { getViewCategory } from "./filters.js";
 
 const pocDetailSection = document.getElementById("poc-detail-section");
 const pocDetailBack = document.getElementById("poc-detail-back");
@@ -21,7 +23,8 @@ let currentPoc = null;
 export function setupPocDetail() {
   if (pocDetailBack) {
     pocDetailBack.addEventListener("click", () => {
-      switchView("overview");
+      // Use router to navigate back to dashboard with current view category
+      navigateToDashboard(getViewCategory());
     });
   }
 
@@ -74,6 +77,12 @@ export function showPocDetail(poc) {
 
   pocDetailTitle.textContent = poc.name;
 
+  // Update breadcrumb
+  const breadcrumbName = document.getElementById("poc-breadcrumb-name");
+  if (breadcrumbName) {
+    breadcrumbName.textContent = poc.name || "POC Detail";
+  }
+
   pocDetailMeta.textContent = `Customer: ${
     poc.customer_name || "–"
   } · Partner: ${poc.partner || "–"} · ${seLabel} · Prep: ${formatDate(
@@ -84,6 +93,9 @@ export function showPocDetail(poc) {
 
   renderPucTable(poc);
   switchView("poc");
+
+  // Update URL to reflect POC detail view
+  navigateToPocDetail(poc.id);
 }
 
 function renderPucTable(poc) {

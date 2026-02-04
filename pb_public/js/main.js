@@ -15,8 +15,17 @@ import { initLoadingOverlay, showLoading, hideLoading } from "./loading.js";
 import { showSettingsModal } from "./settings.js";
 import { initExecDashboard, refreshExecDashboard } from "./exec_dashboard.js";
 import { showCreatePocModal } from "./create_poc_modal.js";
+import {
+  initRouter,
+  setNavigationHandler,
+  getCurrentRoute,
+  navigateTo,
+  navigateToDashboard,
+  ROUTES
+} from "./router.js";
+import { setViewCategory, getViewCategory } from "./filters.js";
 
-console.log("[POC-PORTAL] main.js VERSION 0.0.6 - Session persistence + Settings + Exec Dashboard + Create POC");
+console.log("[POC-PORTAL] main.js VERSION 0.0.7 - Hash-based routing");
 
 //const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
 //const PB_BASE = "https://pocinsights.mimlab.io"; 
@@ -40,10 +49,10 @@ async function initializePortal(pb, user) {
   loginSection.classList.add("hidden");
   portalSection.classList.remove("hidden");
   
-  // Show logout, settings, exec dashboard, and create POC buttons
+  // Show logout, settings, nav, and create POC buttons
   document.getElementById("logout-btn")?.classList.remove("hidden");
   document.getElementById("settings-btn")?.classList.remove("hidden");
-  document.getElementById("exec-dashboard-btn")?.classList.remove("hidden");
+  document.getElementById("header-nav")?.classList.remove("hidden");
   document.getElementById("create-poc-btn")?.classList.remove("hidden");
 
   // Update loading message
@@ -125,37 +134,108 @@ async function initializePortal(pb, user) {
 
   // Setup executive dashboard navigation
   setupExecDashboardNav();
+
+  // Initialize router and set up navigation handler
+  setNavigationHandler(handleNavigation);
+  const initialRoute = initRouter();
+
+  // Handle initial route (e.g., if user navigated directly to #/exec)
+  if (initialRoute.path !== ROUTES.DASHBOARD && initialRoute.path !== ROUTES.DASHBOARD_VIEW) {
+    handleNavigation(initialRoute);
+  } else if (initialRoute.params.view && initialRoute.params.view !== "active") {
+    // If URL has a specific view, apply it
+    setViewCategory(initialRoute.params.view, true);
+  }
 }
 
 /**
  * Setup executive dashboard navigation handlers
  */
 function setupExecDashboardNav() {
-  const portalSection = document.getElementById("portal-section");
-  const execSection = document.getElementById("exec-dashboard-section");
   const execBtn = document.getElementById("exec-dashboard-btn");
   const execBackBtn = document.getElementById("exec-back-btn");
 
-  // Open executive dashboard
+  // Open executive dashboard - use router
   if (execBtn) {
     execBtn.addEventListener("click", () => {
-      console.log("[POC-PORTAL] Opening Executive Dashboard");
-      portalSection?.classList.add("hidden");
-      execSection?.classList.remove("hidden");
-
-      // Initialize/refresh the exec dashboard
-      initExecDashboard();
+      navigateTo("/exec");
     });
   }
 
-  // Back to portal
+  // Back to portal - use router
   if (execBackBtn) {
     execBackBtn.addEventListener("click", () => {
-      console.log("[POC-PORTAL] Returning to Portal");
-      execSection?.classList.add("hidden");
-      portalSection?.classList.remove("hidden");
+      navigateToDashboard(getViewCategory());
     });
   }
+}
+
+/**
+ * Handle route navigation - switches views based on current route
+ */
+function handleNavigation(route) {
+  console.log("[POC-PORTAL] Handling navigation:", route);
+
+  const portalSection = document.getElementById("portal-section");
+  const execSection = document.getElementById("exec-dashboard-section");
+  const pocDetailSection = document.getElementById("poc-detail-section");
+  const usecaseDetailSection = document.getElementById("usecase-detail-section");
+
+  // Hide all sections first
+  pocDetailSection?.classList.add("hidden");
+  usecaseDetailSection?.classList.add("hidden");
+
+  switch (route.path) {
+    case ROUTES.EXEC:
+      portalSection?.classList.add("hidden");
+      execSection?.classList.remove("hidden");
+      initExecDashboard();
+      updateHeaderNav("exec");
+      break;
+
+    case ROUTES.DASHBOARD:
+    case ROUTES.DASHBOARD_VIEW:
+      execSection?.classList.add("hidden");
+      portalSection?.classList.remove("hidden");
+      // Update view category without triggering another URL change
+      const viewCategory = route.params.view || "active";
+      if (getViewCategory() !== viewCategory) {
+        setViewCategory(viewCategory, true); // true = skip URL update
+      }
+      updateHeaderNav("dashboard");
+      break;
+
+    case ROUTES.POC_DETAIL:
+      // POC detail handled by showPocDetail - this is for direct URL access
+      execSection?.classList.add("hidden");
+      portalSection?.classList.add("hidden");
+      pocDetailSection?.classList.remove("hidden");
+      updateHeaderNav("dashboard");
+      break;
+
+    case ROUTES.USECASE_DETAIL:
+      // Use case detail handled by showUseCaseDetail
+      execSection?.classList.add("hidden");
+      portalSection?.classList.add("hidden");
+      usecaseDetailSection?.classList.remove("hidden");
+      updateHeaderNav("dashboard");
+      break;
+  }
+}
+
+/**
+ * Update header navigation active state
+ */
+function updateHeaderNav(activeRoute) {
+  const navItems = document.querySelectorAll(".header-nav .nav-item");
+  navItems.forEach(item => {
+    const route = item.dataset.route;
+    if (route === activeRoute) {
+      item.classList.add("nav-item--active");
+    } else {
+      item.classList.remove("nav-item--active");
+    }
+  });
 }
 
 /**
@@ -175,7 +255,7 @@ function handleLogout() {
   document.getElementById("exec-dashboard-section")?.classList.add("hidden");
   document.getElementById("logout-btn")?.classList.add("hidden");
   document.getElementById("settings-btn")?.classList.add("hidden");
-  document.getElementById("exec-dashboard-btn")?.classList.add("hidden");
+  document.getElementById("header-nav")?.classList.add("hidden");
   document.getElementById("create-poc-btn")?.classList.add("hidden");
   userInfo.textContent = "Not signed in";
   

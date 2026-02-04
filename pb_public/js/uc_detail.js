@@ -4,6 +4,8 @@ import {
   userDisplayLabel,
   getPucForPoc,
 } from "./helpers.js";
+import { navigateToDashboard, navigateToUseCaseDetail } from "./router.js";
+import { getViewCategory } from "./filters.js";
 
 const usecaseDetailSection = document.getElementById(
   "usecase-detail-section"
@@ -17,7 +19,8 @@ const ucDetailTableBody = document.querySelector(
 export function setupUcDetail() {
   if (ucDetailBack) {
     ucDetailBack.addEventListener("click", () => {
-      switchView("overview");
+      // Use router to navigate back to dashboard with current view category
+      navigateToDashboard(getViewCategory());
     });
   }
 }
@@ -40,9 +43,15 @@ function switchView(view) {
 export function showUseCaseDetail(uc) {
   if (!usecaseDetailSection) return;
 
-  ucDetailTitle.textContent = `${uc.code} v${uc.version || 1} – ${
-    uc.title || ""
-  }`;
+  const titleText = `${uc.code} v${uc.version || 1} – ${uc.title || ""}`;
+  ucDetailTitle.textContent = titleText;
+
+  // Update breadcrumb
+  const breadcrumbName = document.getElementById("uc-breadcrumb-name");
+  if (breadcrumbName) {
+    breadcrumbName.textContent = uc.code || "Use Case";
+  }
+
   ucDetailTableBody.innerHTML = "";
 
   const relevantPuc = appState.allPuc.filter(
@@ -74,4 +83,7 @@ export function showUseCaseDetail(uc) {
   });
 
   switchView("uc");
+
+  // Update URL to reflect use case detail view
+  navigateToUseCaseDetail(uc.id);
 }

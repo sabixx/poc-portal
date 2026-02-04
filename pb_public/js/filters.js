@@ -1,10 +1,11 @@
 // filters.js - Filtering functionality for POC Portal
-// VERSION 3.0 - Three top-level view categories: Active, In Review, Completed
+// VERSION 3.1 - URL-synced view categories
 // Handles SE, Region, Product, Search, and Status filters
 
 import { categorizePoc } from "./poc_status.js";
+import { navigateToDashboard } from "./router.js";
 
-console.log("[Filters] VERSION 3.0 - Three view categories");
+console.log("[Filters] VERSION 3.1 - URL-synced view categories");
 
 /**
  * Filter state
@@ -34,11 +35,19 @@ export function getViewCategory() {
 
 /**
  * Set view category and trigger filter change
+ * @param {string} category - View category: 'active', 'in_review', 'completed'
+ * @param {boolean} skipUrlUpdate - If true, don't update URL (used when URL already changed)
  */
-export function setViewCategory(category) {
-  console.log("[Filters] Setting view category:", category);
+export function setViewCategory(category, skipUrlUpdate = false) {
+  console.log("[Filters] Setting view category:", category, "skipUrlUpdate:", skipUrlUpdate);
   filterState.viewCategory = category;
   localStorage.setItem("pocPortal_viewCategory", category);
+
+  // Update URL if not skipped (to avoid infinite loops)
+  if (!skipUrlUpdate) {
+    navigateToDashboard(category);
+  }
+
   triggerFilterChange();
 }
 

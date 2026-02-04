@@ -19,16 +19,33 @@
 </head>
 <body>
   <header class="app-header">
-    <div>
-      <h1>POC Insights</h1>
-      <div class="hint" id="user-info">Not signed in</div>
+    <!-- Left: Brand + Primary Navigation -->
+    <div class="header-left">
+      <div class="header-brand">
+        <h1>POC Insights</h1>
+        <div class="hint" id="user-info">Not signed in</div>
+      </div>
+      <!-- Primary Navigation -->
+      <nav class="header-nav hidden" id="header-nav">
+        <a href="#/dashboard" class="nav-item nav-item--active" data-route="dashboard">
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="#/exec" class="nav-item" data-route="exec">
+          <span class="nav-label">ER Analytics</span>
+        </a>
+      </nav>
     </div>
-    <div class="header-actions">
-      <button id="create-poc-btn" type="button" class="create-poc-header-btn hidden" title="Create new POC">+ Manual POC</button>
-      <button id="exec-dashboard-btn" type="button" class="header-btn hidden" title="ER Analytics View">📊 ER Dashboard</button>
-      <button id="settings-btn" type="button" class="header-btn hidden" title="Settings">⚙️</button>
-      <button id="logout-btn" type="button" class="header-btn hidden" title="Sign out">🚪</button>
-      <button id="theme-toggle" type="button">🌓</button>
+    <!-- Right: Actions + User Menu -->
+    <div class="header-right">
+      <button id="create-poc-btn" type="button" class="btn btn--primary hidden" title="Create new POC">
+        <span class="btn-icon">+</span>
+        <span class="btn-label">New POC</span>
+      </button>
+      <div class="header-user-menu">
+        <button id="settings-btn" type="button" class="btn btn--icon hidden" title="Settings">⚙️</button>
+        <button id="theme-toggle" type="button" class="btn btn--icon" title="Toggle theme">🌓</button>
+        <button id="logout-btn" type="button" class="btn btn--icon hidden" title="Sign out">🚪</button>
+      </div>
     </div>
   </header>
 
@@ -65,14 +82,14 @@
 
     <!-- Main overview -->
     <section id="portal-section" class="hidden">
+      <!-- Filters (moved to top) -->
+      <section id="filter-section">
+        <!-- Filter bar rendered by JS -->
+      </section>
+
       <!-- Dashboard with View Tabs -->
       <section id="dashboard-section">
         <!-- Dashboard content rendered by JS -->
-      </section>
-
-      <!-- Filters -->
-      <section id="filter-section">
-        <!-- Filter bar rendered by JS -->
       </section>
 
       <!-- POC List (single container) -->
@@ -127,7 +144,11 @@
 
     <!-- POC detail view -->
     <section id="poc-detail-section" class="hidden detail-section">
-      <button id="poc-detail-back" class="back-btn">← Back to overview</button>
+      <nav class="breadcrumb">
+        <a href="#/dashboard" class="breadcrumb-item" id="poc-detail-back">Dashboard</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item breadcrumb-current" id="poc-breadcrumb-name">POC Detail</span>
+      </nav>
       <h2 id="poc-detail-title">POC detail</h2>
       <div id="poc-detail-meta" class="poc-detail-meta"></div>
       <div class="detail-table-wrapper">
@@ -149,7 +170,11 @@
 
     <!-- Use-case detail view -->
     <section id="usecase-detail-section" class="hidden detail-section">
-      <button id="usecase-detail-back" class="back-btn">← Back to overview</button>
+      <nav class="breadcrumb">
+        <a href="#/dashboard" class="breadcrumb-item" id="usecase-detail-back">Dashboard</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item breadcrumb-current" id="uc-breadcrumb-name">Use Case</span>
+      </nav>
       <h2 id="usecase-detail-title">Use case detail</h2>
       <div class="detail-table-wrapper">
         <table id="usecase-detail-table" class="usecase-table">
@@ -171,7 +196,7 @@
   </main>
 
   <!-- Modules -->
-  <script type="module" src="js/theme.js?v=2"></script>
-  <script type="module" src="js/main.js?v=2"></script>
+  <script type="module" src="js/theme.js?v=3"></script>
+  <script type="module" src="js/main.js?v=3"></script>
 </body>
 </html>
