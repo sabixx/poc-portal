@@ -6,3 +6,5 @@ pb_data/*
 _backup/
 pocketbase
 .claude/
+.gitignore
+docker-compose.yaml
