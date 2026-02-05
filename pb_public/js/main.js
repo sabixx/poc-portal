@@ -25,7 +25,7 @@ import {
 } from "./router.js";
 import { setViewCategory, getViewCategory } from "./filters.js";
 
-console.log("[POC-PORTAL] main.js VERSION 0.0.7 - Hash-based routing");
+console.log("[POC-PORTAL] main.js VERSION 0.0.8 - Navigation fixes");
 
 //const PB_BASE = "http://172.17.32.15:8090"; // adjust if needed
 //const PB_BASE = "https://pocinsights.mimlab.io"; 
@@ -49,7 +49,8 @@ async function initializePortal(pb, user) {
   loginSection.classList.add("hidden");
   portalSection.classList.remove("hidden");
   
-  // Show logout, settings, nav, and create POC buttons
+  // Show header and navigation elements
+  document.getElementById("app-header")?.classList.remove("hidden");
   document.getElementById("logout-btn")?.classList.remove("hidden");
   document.getElementById("settings-btn")?.classList.remove("hidden");
   document.getElementById("header-nav")?.classList.remove("hidden");
@@ -94,8 +95,6 @@ async function initializePortal(pb, user) {
       });
     }
   });
-  console.log("[POC-PORTAL] Indexed comments:", appState.commentsByPoc.size, "POCs,", appState.commentsByPuc.size, "use cases");
-
   // Pre-index feature requests by POC (clear existing and repopulate)
   appState.featureRequestsByPoc.clear();
   allFeatureRequests.forEach(fr => {
@@ -106,20 +105,9 @@ async function initializePortal(pb, user) {
       appState.featureRequestsByPoc.get(fr.poc).push(fr);
     }
   });
-  console.log("[POC-PORTAL] Indexed feature requests:", appState.featureRequestsByPoc.size, "POCs,", allFeatureRequests.length, "total ERs");
-  // Debug: Show which POCs have feature requests
-  if (appState.featureRequestsByPoc.size > 0) {
-    console.log("[POC-PORTAL] POCs with feature requests:", Array.from(appState.featureRequestsByPoc.keys()));
-  } else if (allFeatureRequests.length > 0) {
-    // ERs were fetched but not indexed - likely missing poc field
-    console.warn("[POC-PORTAL] WARNING: Fetched", allFeatureRequests.length, "ERs but none indexed. Sample ER:", allFeatureRequests[0]);
-  }
-
   if (roleHint) {
     roleHint.textContent = roleText;
   }
-
-  console.log('[ProductBoard] Using secure server proxy');
 
   // Update loading message
   showLoading("Initializing...", "Setting up filters");
@@ -140,9 +128,9 @@ async function initializePortal(pb, user) {
   const initialRoute = initRouter();
 
   // Handle initial route (e.g., if user navigated directly to #/exec)
-  if (initialRoute.path !== ROUTES.DASHBOARD && initialRoute.path !== ROUTES.DASHBOARD_VIEW) {
+  if (initialRoute && initialRoute.path !== ROUTES.DASHBOARD && initialRoute.path !== ROUTES.DASHBOARD_VIEW) {
     handleNavigation(initialRoute);
-  } else if (initialRoute.params.view && initialRoute.params.view !== "active") {
+  } else if (initialRoute && initialRoute.params.view && initialRoute.params.view !== "active") {
     // If URL has a specific view, apply it
     setViewCategory(initialRoute.params.view, true);
   }
@@ -174,7 +162,9 @@ function setupExecDashboardNav() {
  * Handle route navigation - switches views based on current route
  */
 function handleNavigation(route) {
-  console.log("[POC-PORTAL] Handling navigation:", route);
+
+  // Force-hide any loading overlay that might be blocking the view
+  hideLoading(true);
 
   const portalSection = document.getElementById("portal-section");
   const execSection = document.getElementById("exec-dashboard-section");
@@ -185,11 +175,18 @@ function handleNavigation(route) {
   pocDetailSection?.classList.add("hidden");
   usecaseDetailSection?.classList.add("hidden");
 
+  // Scroll to top on navigation
+  window.scrollTo(0, 0);
+
   switch (route.path) {
     case ROUTES.EXEC:
       portalSection?.classList.add("hidden");
       execSection?.classList.remove("hidden");
-      initExecDashboard();
+      try {
+        initExecDashboard();
+      } catch (err) {
+        console.error("[POC-PORTAL] Error initializing exec dashboard:", err);
+      }
       updateHeaderNav("exec");
       break;
 
@@ -243,22 +240,32 @@ function updateHeaderNav(activeRoute) {
  */
 function handleLogout() {
   console.log("[POC-PORTAL] Logging out...");
-  appState.pb.authStore.clear();
+
+  try {
+    appState.pb.authStore.clear();
+  } catch (e) {
+    console.warn("[POC-PORTAL] Error clearing auth store:", e);
+  }
   appState.currentUser = null;
-  
+
   // Clear session storage so next login starts fresh
   sessionStorage.removeItem("pocPortal_sessionStarted");
-  
-  // Reset UI
-  loginSection.classList.remove("hidden");
-  portalSection.classList.add("hidden");
-  document.getElementById("exec-dashboard-section")?.classList.add("hidden");
+
+  // Reset UI - hide everything auth-related first
+  document.getElementById("app-header")?.classList.add("hidden");
   document.getElementById("logout-btn")?.classList.add("hidden");
   document.getElementById("settings-btn")?.classList.add("hidden");
   document.getElementById("header-nav")?.classList.add("hidden");
   document.getElementById("create-poc-btn")?.classList.add("hidden");
+  portalSection.classList.add("hidden");
+  document.getElementById("exec-dashboard-section")?.classList.add("hidden");
+  document.getElementById("poc-detail-section")?.classList.add("hidden");
+  document.getElementById("usecase-detail-section")?.classList.add("hidden");
+
+  // Show login
+  loginSection.classList.remove("hidden");
   userInfo.textContent = "Not signed in";
-  
+
   // Clear form
   document.getElementById("login-email").value = "";
   document.getElementById("login-password").value = "";
@@ -271,6 +278,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize loading overlay
   initLoadingOverlay();
+
+  // Initialize Lucide icons for static header elements
+  if (window.lucide) {
+    lucide.createIcons();
+  }
 
   setupPocDetail();
   setupUcDetail();
@@ -335,7 +347,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Global refresh function for use after POC creation
   window.refreshPocList = async function() {
-    console.log("[POC-PORTAL] Refreshing POC list...");
     showLoading("Refreshing...", "Fetching updated data");
 
     try {
@@ -350,7 +361,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       await renderMainView();
 
       hideLoading(true);
-      console.log("[POC-PORTAL] POC list refreshed successfully");
     } catch (err) {
       console.error("[POC-PORTAL] Failed to refresh:", err);
       hideLoading(true);

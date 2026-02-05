@@ -35,7 +35,7 @@ export function renderProductBoardBadges(links) {
     
     return `
       <span class="pb-badge pb-status-${statusClass}" title="${escapeHtml(title)}">
-        📋 ${status}
+        <i data-lucide="clipboard-list" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${status}
       </span>
     `;
   }).join('');

@@ -128,19 +128,22 @@ function renderLinks(links, container, onUpdate) {
           </div>
           ${link.productboard_insight_id ? `
             <div class="pb-insight-badge" title="Insight sent to ProductBoard">
-              📝 Insight Created
+              <i data-lucide="file-text" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> Insight Created
             </div>
           ` : ''}
         </div>
         <button type="button" class="pb-btn-remove" data-link-id="${link.id}" title="Remove link">
-          🗑️
+          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
         </button>
       </div>
     `;
   }).filter(Boolean).join('');
   
   container.innerHTML = html;
-  
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
+
   // Add remove handlers
   container.querySelectorAll('.pb-btn-remove').forEach(btn => {
     btn.addEventListener('click', async (e) => {

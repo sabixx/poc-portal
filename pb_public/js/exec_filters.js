@@ -1,9 +1,9 @@
 // exec_filters.js - Executive Dashboard Filter System
-// VERSION 1.0 - Filter-driven exploration with saved views
+// VERSION 2.0 - Filter-driven exploration with saved views + Lucide icons
 
 import { categorizePoc } from "./poc_status.js";
 
-console.log("[ExecFilters] VERSION 1.0 - Filter system initialized");
+console.log("[ExecFilters] VERSION 2.0 - Filter system initialized");
 
 const STORAGE_KEY_FILTERS = "execDashboard_filters";
 const STORAGE_KEY_VIEWS = "execDashboard_savedViews";
@@ -101,7 +101,6 @@ export function applyPreset(presetId) {
   execFilterState.activePresetId = presetId;
 
   triggerFilterChange();
-  console.log("[ExecFilters] Applied preset:", preset.name);
   return true;
 }
 
@@ -176,7 +175,6 @@ export function loadFilterState() {
       execFilterState.commercialResultFilter = parsed.commercialResultFilter || 'all';
       execFilterState.activePresetId = parsed.activePresetId || null;
       execFilterState.topNToggle = parsed.topNToggle || 5;
-      console.log("[ExecFilters] Loaded filter state from localStorage");
     }
   } catch (e) {
     console.error("[ExecFilters] Failed to load filter state:", e);
@@ -283,7 +281,6 @@ export function saveFilterView(name) {
 
   views.push(newView);
   saveViewsToStorage(views, newView.id);
-  console.log("[ExecFilters] Saved new view:", newView.name);
   return newView;
 }
 
@@ -311,7 +308,6 @@ export function loadFilterView(viewId) {
 
   saveViewsToStorage(views, viewId);
   triggerFilterChange();
-  console.log("[ExecFilters] Loaded view:", view.name);
   return true;
 }
 
@@ -339,7 +335,6 @@ export function updateFilterView(viewId) {
   views[idx].updatedAt = new Date().toISOString();
 
   saveViewsToStorage(views, viewId);
-  console.log("[ExecFilters] Updated view:", views[idx].name);
   return true;
 }
 
@@ -351,7 +346,6 @@ export function deleteFilterView(viewId) {
   const activeId = getActiveViewId();
   views = views.filter(v => v.id !== viewId);
   saveViewsToStorage(views, activeId === viewId ? null : activeId);
-  console.log("[ExecFilters] Deleted view:", viewId);
   return true;
 }
 
@@ -452,16 +446,6 @@ export function getPocStatusLabel(poc, pocUseCasesMap, asOfDate) {
  * Returns filtered POCs based on current filter state
  */
 export function applyExecFilters(pocs, pocFeatureRequestsByPoc, users, pocUseCasesMap, asOfDate) {
-  console.log("[ExecFilters] Applying filters to", pocs.length, "POCs");
-  console.log("[ExecFilters] Feature requests map size:", pocFeatureRequestsByPoc.size);
-  console.log("[ExecFilters] Current filter state:", {
-    pocStatus: execFilterState.pocStatus,
-    dealBreakerMode: execFilterState.dealBreakerMode,
-    selectedProducts: execFilterState.selectedProducts.size,
-    selectedRegions: execFilterState.selectedRegions.size,
-    selectedERs: execFilterState.selectedERs.size,
-  });
-
   // Build user region lookup
   const userRegionMap = new Map();
   users.forEach(u => {
@@ -488,16 +472,11 @@ export function applyExecFilters(pocs, pocFeatureRequestsByPoc, users, pocUseCas
     // Handle both boolean true and string "true"
     const hasDealBreaker = pfrs.some(pfr => {
       const isDealBreaker = pfr.is_deal_breaker === true || pfr.is_deal_breaker === "true";
-      // Log the first few to debug
-      if (dealBreakerCount < 3 && isDealBreaker) {
-        console.log("[ExecFilters] Found deal breaker:", { pocId, is_deal_breaker: pfr.is_deal_breaker, type: typeof pfr.is_deal_breaker });
-      }
       return isDealBreaker;
     });
     if (hasDealBreaker) dealBreakerCount++;
     pocHasDealBreaker.set(pocId, hasDealBreaker);
   });
-  console.log("[ExecFilters] POCs with deal breakers:", dealBreakerCount);
 
   const filtered = pocs.filter(p => {
     // Skip deregistered POCs - they should not appear anywhere
@@ -567,11 +546,8 @@ export function applyExecFilters(pocs, pocFeatureRequestsByPoc, users, pocUseCas
     return true;
   });
 
-  console.log("[ExecFilters] Filtered result:", filtered.length, "POCs");
-
   // Debug: Log deal breaker filtering results
   if (execFilterState.dealBreakerMode === 'only') {
-    console.log("[ExecFilters] 'Only Deal Breakers' mode - showing", filtered.length, "POCs");
     if (filtered.length === 0 && dealBreakerCount > 0) {
       console.warn("[ExecFilters] Warning: Deal breakers exist but none passed POC status filter");
     }
@@ -608,7 +584,7 @@ export function renderExecFilterBar(container, options) {
     <div class="exec-filter-row">
       <!-- POC Status Toggle -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">POC Status</span>
+        <span class="exec-filter-label"><i data-lucide="activity" style="width:12px;height:12px;"></i> POC Status</span>
         <div class="exec-status-toggle">
           <button type="button" class="exec-status-toggle-btn ${execFilterState.pocStatus === 'open' ? 'active' : ''}" data-status="open">Open</button>
           <button type="button" class="exec-status-toggle-btn ${execFilterState.pocStatus === 'closed' ? 'active' : ''}" data-status="closed">Closed</button>
@@ -618,11 +594,11 @@ export function renderExecFilterBar(container, options) {
 
       <!-- Product Multi-Select -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">Product</span>
+        <span class="exec-filter-label"><i data-lucide="box" style="width:12px;height:12px;"></i> Product</span>
         <div class="exec-filter-dropdown" data-filter="product">
           <button type="button" class="exec-filter-dropdown-btn">
             <span class="exec-filter-dropdown-text">${getDropdownLabel(execFilterState.selectedProducts, products, 'All Products')}</span>
-            <span class="exec-filter-dropdown-arrow">&#9662;</span>
+            <i data-lucide="chevron-down" class="exec-filter-dropdown-arrow"></i>
           </button>
           <div class="exec-filter-dropdown-menu hidden">
             <div class="exec-filter-menu-header">
@@ -644,11 +620,11 @@ export function renderExecFilterBar(container, options) {
 
       <!-- Region Multi-Select -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">Region</span>
+        <span class="exec-filter-label"><i data-lucide="map-pin" style="width:12px;height:12px;"></i> Region</span>
         <div class="exec-filter-dropdown" data-filter="region">
           <button type="button" class="exec-filter-dropdown-btn">
             <span class="exec-filter-dropdown-text">${getDropdownLabel(execFilterState.selectedRegions, regions, 'All Regions')}</span>
-            <span class="exec-filter-dropdown-arrow">&#9662;</span>
+            <i data-lucide="chevron-down" class="exec-filter-dropdown-arrow"></i>
           </button>
           <div class="exec-filter-dropdown-menu hidden">
             <div class="exec-filter-menu-header">
@@ -670,11 +646,11 @@ export function renderExecFilterBar(container, options) {
 
       <!-- Feature Request Multi-Select -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">Feature Request</span>
+        <span class="exec-filter-label"><i data-lucide="clipboard-list" style="width:12px;height:12px;"></i> Feature Request</span>
         <div class="exec-filter-dropdown" data-filter="er">
           <button type="button" class="exec-filter-dropdown-btn">
             <span class="exec-filter-dropdown-text">${getERDropdownLabel(execFilterState.selectedERs, ers)}</span>
-            <span class="exec-filter-dropdown-arrow">&#9662;</span>
+            <i data-lucide="chevron-down" class="exec-filter-dropdown-arrow"></i>
           </button>
           <div class="exec-filter-dropdown-menu hidden">
             <div class="exec-filter-menu-header">
@@ -696,11 +672,11 @@ export function renderExecFilterBar(container, options) {
 
       <!-- Customer Multi-Select -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">Customer</span>
+        <span class="exec-filter-label"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Customer</span>
         <div class="exec-filter-dropdown" data-filter="customer">
           <button type="button" class="exec-filter-dropdown-btn">
             <span class="exec-filter-dropdown-text">${getDropdownLabel(execFilterState.selectedCustomers, customers, 'All Customers')}</span>
-            <span class="exec-filter-dropdown-arrow">&#9662;</span>
+            <i data-lucide="chevron-down" class="exec-filter-dropdown-arrow"></i>
           </button>
           <div class="exec-filter-dropdown-menu hidden">
             <div class="exec-filter-menu-header">
@@ -722,7 +698,7 @@ export function renderExecFilterBar(container, options) {
 
       <!-- Deal Breaker Toggle -->
       <div class="exec-filter-group">
-        <span class="exec-filter-label">Deal Breaker</span>
+        <span class="exec-filter-label"><i data-lucide="shield-alert" style="width:12px;height:12px;"></i> Deal Breaker</span>
         <div class="exec-deal-breaker-toggle">
           <button type="button" class="exec-deal-breaker-btn ${execFilterState.dealBreakerMode === 'include' ? 'active' : ''}" data-mode="include">Include</button>
           <button type="button" class="exec-deal-breaker-btn ${execFilterState.dealBreakerMode === 'exclude' ? 'active' : ''}" data-mode="exclude">Exclude</button>
@@ -736,6 +712,9 @@ export function renderExecFilterBar(container, options) {
       </div>
     </div>
   `;
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   attachFilterListeners(container, options);
 }
@@ -947,12 +926,15 @@ export function renderSavedViewsBar(container) {
     ${views.map(v => `
       <div class="exec-saved-view-chip ${v.id === activeId ? 'active' : ''}" data-view-id="${v.id}">
         <span class="exec-saved-view-name">${escapeHtml(v.name)}</span>
-        <span class="exec-saved-view-delete" data-delete-id="${v.id}" title="Delete view">&times;</span>
+        <span class="exec-saved-view-delete" data-delete-id="${v.id}" title="Delete view"><i data-lucide="x" style="width:12px;height:12px;"></i></span>
       </div>
     `).join('')}
     ${views.length === 0 ? '<span style="color: var(--text-secondary); font-size: 0.85rem;">No saved views</span>' : ''}
-    <button type="button" class="exec-save-view-btn" id="exec-save-view-btn">+ Save Current</button>
+    <button type="button" class="exec-save-view-btn" id="exec-save-view-btn"><i data-lucide="bookmark-plus" style="width:14px;height:14px;"></i> Save Current</button>
   `;
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   attachSavedViewListeners(container);
 }

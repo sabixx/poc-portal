@@ -288,7 +288,6 @@ export async function renderInReviewPocCard(p) {
 
   // Create refresh function for this card
   const refreshCard = async () => {
-    console.log('[POC-Card-InReview] Refreshing card for POC:', p.id);
     try {
       const newFeatureRequests = await appState.pb
         .collection('poc_feature_requests')
@@ -312,8 +311,6 @@ export async function renderInReviewPocCard(p) {
           metaRow.insertAdjacentHTML('afterend', renderProductBoardBadges(newPbLinks));
         }
       }
-
-      console.log('[POC-Card-InReview] Card refreshed successfully');
     } catch (error) {
       console.error('[POC-Card-InReview] Failed to refresh card:', error);
     }
@@ -325,7 +322,6 @@ export async function renderInReviewPocCard(p) {
   // Listen for ER toggle event
   card.addEventListener('toggle-ers', async (e) => {
     const showERs = e.detail?.showERs ?? true;
-    console.log('[POC-Card-InReview] toggle-ers event received:', showERs);
 
     // Re-render details with toggle state
     const detailsContainer = card.querySelector('.poc-details');

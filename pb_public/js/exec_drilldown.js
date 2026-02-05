@@ -1,9 +1,9 @@
 // exec_drilldown.js - Executive Dashboard Drill-Down Table
-// VERSION 1.0 - Customer-level detail view
+// VERSION 2.0 - Customer-level detail view with Lucide icons
 
 import { getPocStatusLabel } from "./exec_filters.js";
 
-console.log("[ExecDrilldown] VERSION 1.0 - Drill-down table initialized");
+console.log("[ExecDrilldown] VERSION 2.0 - Drill-down table initialized");
 
 /**
  * Parse AEB value to number
@@ -123,7 +123,7 @@ export function renderERDrilldown(container, erData, onClose) {
           (${customers.length} customer${customers.length !== 1 ? 's' : ''})
         </span>
       </div>
-      <button type="button" class="exec-drilldown-close">Close</button>
+      <button type="button" class="exec-drilldown-close"><i data-lucide="x" style="width:14px;height:14px;"></i> Close</button>
     </div>
     <table class="exec-drilldown-table">
       <thead>
@@ -170,6 +170,9 @@ export function renderERDrilldown(container, erData, onClose) {
 
   container.classList.remove('hidden');
 
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
+
   // Close button handler
   const closeBtn = container.querySelector('.exec-drilldown-close');
   if (closeBtn) {
@@ -200,7 +203,7 @@ export function renderSummaryDrilldown(container, title, pocsWithDetails, onClos
           (${sorted.length} POC${sorted.length !== 1 ? 's' : ''})
         </span>
       </div>
-      <button type="button" class="exec-drilldown-close">Close</button>
+      <button type="button" class="exec-drilldown-close"><i data-lucide="x" style="width:14px;height:14px;"></i> Close</button>
     </div>
     <table class="exec-drilldown-table">
       <thead>
@@ -248,6 +251,9 @@ export function renderSummaryDrilldown(container, title, pocsWithDetails, onClos
   `;
 
   container.classList.remove('hidden');
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   // Close button handler
   const closeBtn = container.querySelector('.exec-drilldown-close');

@@ -5,8 +5,6 @@ import { createFeature, syncFeatureToLocal, createLink, getProducts } from './ap
 import { showSuccessNotification, showErrorNotification } from './error_handler.js';
 import { showTimeframeSelector } from '../timeframe_selector.js';
 
-console.log('[ProductBoard] create_er_modal.js loaded');
-
 // Module-level state to hold context
 let modalContext = {
   pb: null,
@@ -23,8 +21,6 @@ let modalContext = {
  * @param {Function} refreshCallback - Callback to refresh parent view (optional)
  */
 export function showCreateERModal(pb = null, pocId = null, useCaseId = null, refreshCallback = null) {
-  console.log('[ProductBoard] showCreateERModal() called', { pocId, useCaseId });
-
   // Store context for use in handleCreateER
   modalContext = {
     pb: pb || window.pb,
@@ -69,8 +65,6 @@ async function loadProductsIntoSelect() {
       option.textContent = product.name;
       select.appendChild(option);
     });
-
-    console.log('[ProductBoard] Loaded', products.length, 'products into create ER modal');
   } catch (error) {
     console.error('[ProductBoard] Failed to load products:', error);
     select.innerHTML = '<option value="">Failed to load products</option>';
@@ -251,8 +245,6 @@ async function handleCreateER(modal) {
   createBtn.textContent = 'Creating...';
 
   try {
-    console.log('[ProductBoard] Creating ER in ProductBoard:', { title, productId, productName });
-
     // 1. Create the feature in ProductBoard via backend
     const createdFeature = await createFeature({
       title,
@@ -260,9 +252,6 @@ async function handleCreateER(modal) {
       productId,
       productName
     });
-
-    console.log('[ProductBoard] Feature created in ProductBoard:', createdFeature.id);
-    console.log('[ProductBoard] Full createFeature response:', createdFeature);
 
     // 2. Sync the feature to local database
     const { pb, pocId, useCaseId, refreshCallback } = modalContext;
@@ -280,20 +269,14 @@ async function handleCreateER(modal) {
       product: productName
     });
 
-    console.log('[ProductBoard] Feature synced to local DB:', localFeature.id);
-
     // 3. Link to POC/use case if we have context
     if (pocId) {
-      console.log('[ProductBoard] Linking to POC:', pocId, 'Use case:', useCaseId);
-
       await createLink(pb, pocId, localFeature.id, useCaseId, {
         customerImpact: impact,
         neededByDate: neededBy,
         seComment: comment,
         isDealBreaker: isDealBreaker
       });
-
-      console.log('[ProductBoard] Link created successfully');
     }
 
     // 4. Show success notification
@@ -301,7 +284,6 @@ async function handleCreateER(modal) {
 
     // 5. Trigger refresh callback if provided
     if (refreshCallback && typeof refreshCallback === 'function') {
-      console.log('[ProductBoard] Triggering refresh callback');
       try {
         refreshCallback();
       } catch (e) {

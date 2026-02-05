@@ -5,11 +5,11 @@
  * ProductBoard importance levels with emoji indicators
  */
 export const IMPORTANCE_LEVELS = {
-  critical: { value: 'critical', label: '🔴 Critical', emoji: '🔴' },
-  important: { value: 'important', label: '🟡 Important', emoji: '🟡' },
-  nice_to_have: { value: 'nice_to_have', label: '🔵 Nice to have', emoji: '🔵' },
-  not_important: { value: 'not_important', label: '⚪ Not important', emoji: '⚪' },
-  unknown: { value: 'unknown', label: '❓ Unknown', emoji: '❓' }
+  critical: { value: 'critical', label: 'Critical', dot: 'priority-dot priority-critical' },
+  important: { value: 'important', label: 'Important', dot: 'priority-dot priority-important' },
+  nice_to_have: { value: 'nice_to_have', label: 'Nice to have', dot: 'priority-dot priority-nice' },
+  not_important: { value: 'not_important', label: 'Not important', dot: 'priority-dot priority-low' },
+  unknown: { value: 'unknown', label: 'Unknown', dot: 'priority-dot priority-unknown' }
 };
 
 /**

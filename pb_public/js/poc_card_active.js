@@ -47,35 +47,28 @@ function workingDaysBetween(start, end) {
 // -----------------------------------------------------------------------------
 
 function loadCommentsForUseCasesFromCache(pocId, pocUseCases) {
-  console.log('[POC-Card-Active] Loading comments from cache for POC:', pocId);
-
   if (!pocUseCases || !pocUseCases.length) {
-    console.log('[POC-Card-Active] No use cases provided');
     return [];
   }
 
   // Get comments from pre-indexed cache
   const pocComments = appState.commentsByPoc?.get(pocId) || [];
-  console.log('[POC-Card-Active] Found', pocComments.length, 'cached comments for this POC');
 
   if (pocComments.length === 0) {
     return [];
   }
 
   // Attach comments to use cases
-  let attachedCount = 0;
   const useCaseIdSet = new Set(pocUseCases.map(puc => puc.id));
 
   pocUseCases.forEach(puc => {
     // Get comments for this specific use case from cache
     const pucComments = appState.commentsByPuc?.get(puc.id) || [];
-    
+
     if (!puc.expand) puc.expand = {};
     puc.expand.comments = pucComments;
 
     if (pucComments.length > 0) {
-      attachedCount++;
-
       // Find feedback comment or use latest
       const feedbackComment = pucComments.find(c => c.kind === 'feedback');
       const latestComment = feedbackComment || pucComments[0];
@@ -83,7 +76,6 @@ function loadCommentsForUseCasesFromCache(pocId, pocUseCases) {
     }
   });
 
-  console.log('[POC-Card-Active] Attached comments to', attachedCount, 'use cases (from cache)');
   return pocComments;
 }
 
@@ -273,11 +265,7 @@ function computePocStatus(p, pocUcs, prepInfo) {
 // -----------------------------------------------------------------------------
 
 export async function renderActivePocCard(p) {
-  console.log('[POC-Card-Active] ====== RENDER START ======');
-  console.log('[POC-Card-Active] POC:', p.id, '-', p.customer_name);
-  
   const pocUcs = getPucForPoc(p.id, appState.allPuc) || [];
-  console.log('[POC-Card-Active] Found', pocUcs.length, 'use cases for this POC');
   
   const card = document.createElement("div");
   card.className = "poc-card poc-card-active";
@@ -301,12 +289,10 @@ export async function renderActivePocCard(p) {
 
   // ProductBoard links from cache (not from p.productboard_links)
   const pbLinks = getProductBoardLinksFromCache(p.id);
-  console.log('[POC-Card-Active] ProductBoard links for POC', p.id, ':', pbLinks);
   const pbBadgesHtml = renderProductBoardBadges(pbLinks);
 
   // ---- Feature requests FROM CACHE (NO API CALL!) ----
   const featureRequests = getFeatureRequestsFromCache(p.id);
-  console.log('[POC-Card-Active] Loaded', featureRequests.length, 'feature requests from cache');
 
   // Get ER count for the button
   const erCount = featureRequests.length;
@@ -341,7 +327,7 @@ export async function renderActivePocCard(p) {
             <h3 class="poc-customer-name">${customerName}</h3>
             ${statusInfo.pocDeltaLabel ? `
               <span class="poc-status-badge ${statusInfo.pocDeltaClass}">
-                🕐 ${statusInfo.pocDeltaLabel}
+                <i data-lucide="clock" style="width:14px;height:14px;"></i> ${statusInfo.pocDeltaLabel}
               </span>
             ` : ""}
           </div>
@@ -352,13 +338,13 @@ export async function renderActivePocCard(p) {
             <span class="poc-meta-item poc-aeb-editable">
               <strong>AEB:</strong> 
               <span class="poc-aeb-display">${aebValue ? `$${aebValue}` : "–"}</span>
-              <button type="button" class="poc-aeb-edit-btn" title="Edit AEB">✎</button>
+              <button type="button" class="poc-aeb-edit-btn" title="Edit AEB"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
             </span>
           </div>
 
           ${hasCustomerPrep ? `
             <div class="poc-prep-banner ${prepBadgeClass(prepInfo).replace('prep-badge', 'prep-banner')}">
-              <span class="prep-banner-icon">🎯</span>
+              <span class="prep-banner-icon"><i data-lucide="target" style="width:16px;height:16px;"></i></span>
               <div class="prep-banner-content">
                 <span class="prep-banner-label">Customer prep: <strong>${prepInfo.label}</strong></span>
                 ${prepInfo.outstandingCount > 0 || prepInfo.daysLeft >= 0 ? `
@@ -372,7 +358,7 @@ export async function renderActivePocCard(p) {
           
           ${stalledInfo.isStalled ? `
             <div class="poc-prep-banner prep-banner prep-warning">
-              <span class="stalled-banner-icon">⚠️</span>
+              <span class="stalled-banner-icon"><i data-lucide="triangle-alert" style="width:16px;height:16px;"></i></span>
               <div class="stalled-banner-content">
                 <span class="stalled-banner-label">No engagement for ${stalledInfo.workdaysSinceActivity} workdays</span>
               </div>
@@ -398,9 +384,11 @@ export async function renderActivePocCard(p) {
     </div>
   `;
 
+  // Render Lucide icons in the card
+  if (window.lucide) lucide.createIcons();
+
   // Create refresh function for this card (for when new ERs are linked)
   const refreshCard = async () => {
-    console.log('[POC-Card-Active] Refreshing card for POC:', p.id);
     try {
       // Re-fetch feature requests for this specific POC
       const newFeatureRequests = await appState.pb
@@ -436,8 +424,6 @@ export async function renderActivePocCard(p) {
           toggleBtn.classList.remove('poc-toggle-details-btn--has-ers');
         }
       }
-      
-      console.log('[POC-Card-Active] Card refreshed successfully');
     } catch (error) {
       console.error('[POC-Card-Active] Failed to refresh card:', error);
     }
@@ -448,14 +434,12 @@ export async function renderActivePocCard(p) {
 
   // Listen for custom er-linked event (fallback)
   card.addEventListener('er-linked', () => {
-    console.log('[POC-Card-Active] er-linked event received');
     refreshCard();
   });
 
   // Listen for ER toggle event
   card.addEventListener('toggle-ers', async (e) => {
     const showERs = e.detail?.showERs ?? true;
-    console.log('[POC-Card-Active] toggle-ers event received:', showERs);
     
     // Re-render details with toggle state
     const detailsContainer = card.querySelector('.poc-details');
@@ -496,6 +480,5 @@ export async function renderActivePocCard(p) {
     });
   }
 
-  console.log('[POC-Card-Active] ====== RENDER END ======');
   return card;
 }

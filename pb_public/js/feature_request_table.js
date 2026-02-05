@@ -16,7 +16,7 @@ export function renderFeatureRequestSummary(count) {
   if (!count) return "";
   return `
     <button type="button" class="poc-fr-badge" data-action="toggle-feature-requests">
-      📋 Feature Requests: ${count}
+      <i data-lucide="clipboard-list" style="width:14px;height:14px;"></i> Feature Requests: ${count}
     </button>
   `;
 }
@@ -94,7 +94,7 @@ function renderRow(fr) {
     <tr class="${rowClass}" data-fr-id="${fr.id}">
       <td class="poc-fr-td poc-fr-td-title">
         <div class="poc-fr-title-line">
-          ${isDealBreaker ? '<span class="poc-fr-deal-badge">🚨</span>' : ''}
+          ${isDealBreaker ? '<span class="poc-fr-deal-badge"><i data-lucide="octagon-alert" style="width:14px;height:14px;"></i></span>' : ''}
           ${url 
             ? `<a href="${url}" target="_blank" class="poc-fr-title-link">${escapeHtml(title)}</a>`
             : `<span class="poc-fr-title-text">${escapeHtml(title)}</span>`
@@ -121,7 +121,7 @@ function renderRow(fr) {
       </td>
       <td class="poc-fr-td poc-fr-td-needs">
         <button type="button" class="poc-fr-needs-btn" data-action="edit-timeframe" data-fr-id="${fr.id}" data-current-date="${fr.needed_by_date || ''}" data-current-timeframe="${fr.needed_by_timeframe || ''}">
-          ${needsBy} <span class="poc-fr-edit-ico">✏️</span>
+          ${needsBy} <i data-lucide="pencil" class="poc-fr-edit-ico" style="width:12px;height:12px;"></i>
         </button>
       </td>
       <td class="poc-fr-td poc-fr-td-pb">${pbTimeframe}</td>
@@ -271,7 +271,7 @@ export function attachFeatureRequestListeners(container) {
       });
       
       // Update button text
-      btn.innerHTML = (result || "—") + ' <span class="poc-fr-edit-ico">✏️</span>';
+      btn.innerHTML = (result || "—") + ' <i data-lucide="pencil" class="poc-fr-edit-ico" style="width:12px;height:12px;"></i>';
     });
   });
 

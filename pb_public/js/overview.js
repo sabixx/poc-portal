@@ -28,9 +28,14 @@ export function initOverview() {
   // Set up filter change callback with loading indicator
   setFilterChangeCallback(async () => {
     showLoading("Updating...", "", true); // mini loader
-    await new Promise(resolve => setTimeout(resolve, 50));
-    await renderMainView();
-    hideLoading();
+    try {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await renderMainView();
+    } catch (err) {
+      console.error("[Overview] Error during renderMainView:", err);
+    } finally {
+      hideLoading();
+    }
   });
 }
 
@@ -75,8 +80,6 @@ export async function renderMainView() {
   const portalSection = document.getElementById("portal-section");
   if (!portalSection) return;
 
-  console.log("[POC-PORTAL] renderMainView called");
-
   // Get as-of date (default to now)
   const asOfDate = appState.asOfDate || new Date();
   appState.asOfDate = asOfDate;
@@ -92,8 +95,6 @@ export async function renderMainView() {
 
   // Apply FULL filters (including view category) for card display
   const filteredPocs = applyFilters(appState.allPocs, appState.allUsers, allPocUseCasesMap, asOfDate);
-
-  console.log("[POC-PORTAL] Base filtered POCs:", baseFilteredPocs.length, "| View filtered POCs:", filteredPocs.length, "of", appState.allPocs.length);
 
   // Update POC count indicator with view-filtered count
   updatePocCountIndicator(filteredPocs.length, appState.allPocs.length);
@@ -118,12 +119,6 @@ export async function renderMainView() {
 
 async function renderPocCards(filteredPocs, asOfDate) {
   const viewCategory = getViewCategory();
-  
-  console.log("[POC-PORTAL] renderPocCards called", {
-    filteredCount: filteredPocs?.length,
-    viewCategory,
-    asOfDate,
-  });
 
   // Get POC container
   const pocsContainer = document.getElementById("pocs-container");
@@ -142,8 +137,6 @@ async function renderPocCards(filteredPocs, asOfDate) {
 
   // Group POCs by SE
   const groups = groupBySe(filteredPocs);
-  
-  console.log("[POC-PORTAL] groups:", groups.length);
 
   // Choose renderer based on view category
   let cardRenderer;
@@ -166,11 +159,12 @@ async function renderPocCards(filteredPocs, asOfDate) {
   if (filteredPocs.length === 0) {
     pocsContainer.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-icon"><i data-lucide="inbox" style="width:48px;height:48px;"></i></div>
         <div class="empty-state-text">No POCs found</div>
         <div class="empty-state-hint">Try adjusting your filters or view category</div>
       </div>
     `;
+    if (window.lucide) lucide.createIcons();
   }
 }
 

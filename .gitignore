@@ -5,3 +5,4 @@ pb_migrations/*
 pb_data/*
 _backup/
 pocketbase
+.claude/

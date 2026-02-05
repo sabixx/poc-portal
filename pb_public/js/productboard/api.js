@@ -100,8 +100,6 @@ export async function getProducts() {
  */
 export async function createFeature({ title, description, productId, productName }) {
   try {
-    console.log('[ProductBoard API] createFeature called with:', { title, productId, productName });
-
     const response = await fetch('/api/productboard/features', {
       method: 'POST',
       headers: {
@@ -177,8 +175,6 @@ export async function createInsight({
  * @returns {Promise<Object>} - Local feature_request record
  */
 export async function syncFeatureToLocal(pb, feature) {
-  console.log('[ProductBoard API] syncFeatureToLocal called with:', feature);
-
   try {
     // Check if feature already exists
     const existing = await pb.collection('feature_requests').getList(1, 1, {
@@ -197,15 +193,11 @@ export async function syncFeatureToLocal(pb, feature) {
       last_synced_at: new Date().toISOString()
     };
 
-    console.log('[ProductBoard API] Feature data to save:', featureData);
-
     if (existing.totalItems > 0) {
       // Update existing
-      console.log('[ProductBoard API] Updating existing feature:', existing.items[0].id);
       return await pb.collection('feature_requests').update(existing.items[0].id, featureData);
     } else {
       // Create new
-      console.log('[ProductBoard API] Creating new feature_request record');
       return await pb.collection('feature_requests').create(featureData);
     }
   } catch (error) {
@@ -276,8 +268,6 @@ export function displayCustomerImpact(dbValue) {
  * @returns {Promise<Array>}
  */
 export async function getExistingLinks(pb, pocId, useCaseId = null) {
-  console.log('[ProductBoard API] getExistingLinks called with:', { pocId, useCaseId });
-
   try {
     // Build filter
     let filter = `poc = "${pocId}"`;
@@ -285,15 +275,11 @@ export async function getExistingLinks(pb, pocId, useCaseId = null) {
       filter += ` && use_case = "${useCaseId}"`;
     }
 
-    console.log('[ProductBoard API] Fetching with filter:', filter);
-
     // Use getList instead of getFullList (more reliable)
     const result = await pb.collection('poc_feature_requests').getList(1, 100, {
       filter,
       $autoCancel: false
     });
-
-    console.log('[ProductBoard API] Fetched', result.items.length, 'links for this POC');
 
     // Expand each record individually (this works reliably)
     const expandedLinks = [];
@@ -343,39 +329,30 @@ export async function deleteLink(pb, linkId) {
  */
 export async function createLink(pb, pocId, featureRequestId, useCaseId = null, options = {}) {
   try {
-    console.log('[ProductBoard API] createLink called with:', { pocId, featureRequestId, useCaseId, options });
-    
     // If featureRequestId looks like a ProductBoard ID, find or create the feature_request
     let actualFeatureRequestId = featureRequestId;
-    
+
     if (featureRequestId.includes('-')) {
-      console.log('[ProductBoard API] Detected ProductBoard external_id, syncing to local DB...');
-      
       // This is a ProductBoard external_id, need to sync it first
       const existing = await pb.collection('feature_requests').getList(1, 1, {
         filter: `source = "productboard" && external_id = "${featureRequestId}"`,
         $autoCancel: false
       });
-      
+
       if (existing.items.length > 0) {
         actualFeatureRequestId = existing.items[0].id;
-        console.log('[ProductBoard API] Found existing feature_request:', actualFeatureRequestId);
       } else {
-        console.log('[ProductBoard API] Feature not found locally, fetching from ProductBoard...');
-        
         // Fetch from ProductBoard and create
         const pbFeature = await getFeature(featureRequestId);
-        console.log('[ProductBoard API] Fetched ProductBoard feature:', pbFeature.title);
-        
+
         const newFeature = await syncFeatureToLocal(pb, pbFeature);
         actualFeatureRequestId = newFeature.id;
-        console.log('[ProductBoard API] Created local feature_request:', actualFeatureRequestId);
       }
     }
-    
+
     // Get current user ID from auth store
     const currentUserId = options.currentUserId || pb.authStore?.model?.id || '';
-    
+
     const linkData = {
       poc: pocId,
       feature_request: actualFeatureRequestId,
@@ -388,13 +365,9 @@ export async function createLink(pb, pocId, featureRequestId, useCaseId = null, 
 
     if (useCaseId) {
       linkData.use_case = useCaseId;
-      console.log('[ProductBoard API] Including use_case in link:', useCaseId);
     }
-    
-    console.log('[ProductBoard API] Creating link with data:', linkData);
 
     const result = await pb.collection('poc_feature_requests').create(linkData);
-    console.log('[ProductBoard API] Link created successfully:', result.id);
     return result;
   } catch (error) {
     console.error('[ProductBoard API] Create link error:', error);

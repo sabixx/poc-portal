@@ -75,7 +75,7 @@ export function showPocDetail(poc) {
       poc.expand?.se?.username ||
       "Unknown SE");
 
-  pocDetailTitle.textContent = poc.name;
+  if (pocDetailTitle) pocDetailTitle.textContent = poc.name;
 
   // Update breadcrumb
   const breadcrumbName = document.getElementById("poc-breadcrumb-name");
@@ -83,13 +83,15 @@ export function showPocDetail(poc) {
     breadcrumbName.textContent = poc.name || "POC Detail";
   }
 
-  pocDetailMeta.textContent = `Customer: ${
-    poc.customer_name || "–"
-  } · Partner: ${poc.partner || "–"} · ${seLabel} · Prep: ${formatDate(
-    poc.prep_start_date
-  )} · POC: ${formatDate(poc.poc_start_date)} → ${formatDate(
-    poc.poc_end_date_plan
-  )}`;
+  if (pocDetailMeta) {
+    pocDetailMeta.textContent = `Customer: ${
+      poc.customer_name || "–"
+    } · Partner: ${poc.partner || "–"} · ${seLabel} · Prep: ${formatDate(
+      poc.prep_start_date
+    )} · POC: ${formatDate(poc.poc_start_date)} → ${formatDate(
+      poc.poc_end_date_plan
+    )}`;
+  }
 
   renderPucTable(poc);
   switchView("poc");

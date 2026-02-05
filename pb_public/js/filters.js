@@ -39,7 +39,6 @@ export function getViewCategory() {
  * @param {boolean} skipUrlUpdate - If true, don't update URL (used when URL already changed)
  */
 export function setViewCategory(category, skipUrlUpdate = false) {
-  console.log("[Filters] Setting view category:", category, "skipUrlUpdate:", skipUrlUpdate);
   filterState.viewCategory = category;
   localStorage.setItem("pocPortal_viewCategory", category);
 
@@ -59,8 +58,7 @@ export function setViewCategory(category, skipUrlUpdate = false) {
  */
 export async function loadManagerSeMapping(pb, currentUser) {
   if (!currentUser || !pb) return;
-  
-  console.log("[Filters] Loading SE mapping for:", currentUser.email, "role:", currentUser.role);
+
   filterState._currentUser = currentUser;
   
   // Managers: load their mapped SEs for default selection
@@ -70,8 +68,6 @@ export async function loadManagerSeMapping(pb, currentUser) {
         filter: `manager = "${currentUser.id}"`,
         $autoCancel: false
       });
-      
-      console.log("[Filters] Found manager_se_map entries:", mappings.length);
 
       // Always include the manager's own ID so their own POCs show up
       filterState.allowedSeIds = new Set();
@@ -79,7 +75,6 @@ export async function loadManagerSeMapping(pb, currentUser) {
 
       if (mappings.length > 0) {
         mappings.forEach(m => {
-          console.log("[Filters] Mapping entry:", m);
           if (Array.isArray(m.se)) {
             m.se.forEach(seId => filterState.allowedSeIds.add(seId));
           } else if (m.se) {
@@ -87,12 +82,11 @@ export async function loadManagerSeMapping(pb, currentUser) {
           }
         });
       }
-      console.log("[Filters] Manager's default SEs (including self):", Array.from(filterState.allowedSeIds));
     } catch (e) {
       console.error("[Filters] Failed to load manager-SE mapping:", e);
       filterState.allowedSeIds = null;
     }
-  } 
+  }
   // AEs: load their mapped SEs for default selection
   else if (currentUser.role === "ae") {
     try {
@@ -101,14 +95,11 @@ export async function loadManagerSeMapping(pb, currentUser) {
         $autoCancel: false
       });
 
-      console.log("[Filters] Found ae_se_map entries:", mappings.length);
-
       if (mappings.length > 0) {
         filterState.allowedSeIds = new Set();
         mappings.forEach(m => {
           if (m.se) filterState.allowedSeIds.add(m.se);
         });
-        console.log("[Filters] AE's default SEs:", Array.from(filterState.allowedSeIds));
       } else {
         filterState.allowedSeIds = null;
       }
@@ -119,7 +110,6 @@ export async function loadManagerSeMapping(pb, currentUser) {
   }
   else {
     filterState.allowedSeIds = null;
-    console.log("[Filters] Non-manager/AE user - no default SE mapping");
   }
 }
 
@@ -131,9 +121,8 @@ export async function loadManagerSeMapping(pb, currentUser) {
  * NEW: Managers/AEs always start with "My Team" on each new session (not persisted across browser close)
  */
 export function loadFilterState(currentUser) {
-  console.log("[Filters] Loading filter state for user:", currentUser?.id, currentUser?.email, "role:", currentUser?.role);
   filterState._currentUser = currentUser;
-  
+
   // Load view category
   const savedViewCategory = localStorage.getItem("pocPortal_viewCategory");
   if (savedViewCategory && ["active", "in_review", "completed"].includes(savedViewCategory)) {
@@ -141,13 +130,11 @@ export function loadFilterState(currentUser) {
   } else {
     filterState.viewCategory = "active"; // Default
   }
-  console.log("[Filters] View category:", filterState.viewCategory);
-  
+
   // Check if this is a new session (managers/AEs should start with My Team)
   const isNewSession = !sessionStorage.getItem("pocPortal_sessionStarted");
   if (isNewSession) {
     sessionStorage.setItem("pocPortal_sessionStarted", "true");
-    console.log("[Filters] New session detected - will apply role defaults for manager/AE");
   }
   
   let hasSavedState = false;
@@ -164,36 +151,20 @@ export function loadFilterState(currentUser) {
       filterState.selectedStatuses = new Set(parsed.selectedStatuses || []);
       filterState.searchQuery = parsed.searchQuery || "";
       seFilterMode = parsed.seFilterMode || (filterState.selectedSEs.size > 0 ? "custom" : "all");
-      
-      console.log("[Filters] Loaded from localStorage:", {
-        SEs: filterState.selectedSEs.size,
-        products: filterState.selectedProducts.size,
-        regions: filterState.selectedRegions.size,
-        statuses: filterState.selectedStatuses.size,
-        search: filterState.searchQuery,
-        seFilterMode: seFilterMode
-      });
     }
   } catch (e) {
     console.error("[Filters] Failed to load filter state:", e);
   }
-  
+
   // For managers/AEs with team members: apply role defaults on new session OR if no saved state
   // This ensures they start with "My Team" each time they open the browser
-  const isManagerOrAEWithTeam = (currentUser?.role === "manager" || currentUser?.role === "ae") && 
+  const isManagerOrAEWithTeam = (currentUser?.role === "manager" || currentUser?.role === "ae") &&
                                  filterState.allowedSeIds?.size > 0;
-  
+
   if (isManagerOrAEWithTeam && (isNewSession || !hasSavedState || seFilterMode === null)) {
-    console.log("[Filters] Manager/AE with team - applying role defaults (My Team)");
     applyRoleDefaults(currentUser);
-  } else if (!hasSavedState || seFilterMode === null) {
-    console.log("[Filters] No saved state - applying role defaults");
+  } else if (isNewSession || !hasSavedState || seFilterMode === null) {
     applyRoleDefaults(currentUser);
-  } else if (seFilterMode === "all") {
-    console.log("[Filters] User previously chose View All - showing all POCs");
-    // Keep selectedSEs empty = show all
-  } else {
-    console.log("[Filters] Using saved custom filter selections");
   }
 }
 
@@ -202,16 +173,13 @@ export function loadFilterState(currentUser) {
  */
 function applyRoleDefaults(currentUser) {
   filterState.selectedSEs.clear();
-  
+
   if (currentUser?.role === "se") {
     filterState.selectedSEs.add(currentUser.id);
-    console.log("[Filters] SE user - defaulting to own POCs");
   } else if (currentUser?.role === "manager" && filterState.allowedSeIds?.size > 0) {
     filterState.allowedSeIds.forEach(seId => filterState.selectedSEs.add(seId));
-    console.log("[Filters] Manager user - defaulting to mapped SEs:", Array.from(filterState.selectedSEs));
   } else if (currentUser?.role === "ae" && filterState.allowedSeIds?.size > 0) {
     filterState.allowedSeIds.forEach(seId => filterState.selectedSEs.add(seId));
-    console.log("[Filters] AE user - defaulting to mapped SEs:", Array.from(filterState.selectedSEs));
   }
   // For other roles (pm, admin, etc.): no default = see all POCs
 }
@@ -326,17 +294,6 @@ export function extractFilterOptions(pocs, users, currentUser) {
   const regions = new Set();
   const ses = [];
 
-  console.log("[Filters] ========== EXTRACT FILTER OPTIONS ==========");
-  console.log("[Filters] Input: pocs:", pocs.length, "users:", users.length);
-  console.log("[Filters] currentUser:", currentUser?.email, "role:", currentUser?.role);
-  
-  // Debug: log ALL users with their roles
-  console.log("[Filters] All users:", users.map(u => ({ 
-    id: u.id, 
-    role: u.role, 
-    email: u.email 
-  })));
-
   // Extract products from POCs
   pocs.forEach(p => {
     if (p.product) products.add(p.product);
@@ -348,22 +305,11 @@ export function extractFilterOptions(pocs, users, currentUser) {
       regions.add(u.region);
     }
   });
-  
-  console.log("[Filters] Regions from all SE users:", Array.from(regions));
-
-  // Get SE IDs that have POCs (for reference, but we show ALL SEs in dropdown)
-  const seIdSet = new Set(pocs.map(p => p.se).filter(Boolean));
-  console.log("[Filters] Unique SE IDs from current POCs:", seIdSet.size, Array.from(seIdSet));
-  
-  // Log which users are SEs
-  const seUsers = users.filter(u => u.role === "se");
-  console.log("[Filters] Users with role=se:", seUsers.length, seUsers.map(u => ({ id: u.id, email: u.email })));
 
   // IMPORTANT: Show ALL SEs in dropdown (not just ones with POCs in current view)
   // This allows users to filter by any SE, even if they're not seeing their POCs initially
   users.forEach(u => {
     if (u.role === "se") {
-      console.log("[Filters] Adding SE to dropdown:", u.email);
       ses.push({
         id: u.id,
         email: u.email,
@@ -382,19 +328,15 @@ export function extractFilterOptions(pocs, users, currentUser) {
     });
   }
 
-  console.log("[Filters] RESULT: products:", products.size, "regions:", regions.size, "ses:", ses.length);
-  console.log("[Filters] SEs in dropdown:", ses.map(s => s.email));
-  console.log("[Filters] ========== END EXTRACT ==========");
-
   const options = {
     products: Array.from(products).sort(),
     regions: Array.from(regions).sort(),
     ses: ses.sort((a, b) => (a.name || "").localeCompare(b.name || ""))
   };
-  
+
   // Cache for later use
   filterState._cachedOptions = options;
-  
+
   return options;
 }
 
@@ -404,18 +346,12 @@ export function extractFilterOptions(pocs, users, currentUser) {
 export function renderFilterBar(container, options, currentUser) {
   const { products, regions, ses } = options;
 
-  console.log("[Filters] Rendering filter bar with:", {
-    products: products.length,
-    regions: regions.length,
-    ses: ses.length
-  });
-
   container.innerHTML = `
     <div class="filter-bar">
       <!-- Search -->
       <div class="filter-group filter-search-group">
         <label class="filter-label">
-          <span class="filter-icon">🔍</span>
+          <span class="filter-icon"><i data-lucide="search"></i></span>
           Search
         </label>
         <input 
@@ -430,13 +366,13 @@ export function renderFilterBar(container, options, currentUser) {
       <!-- SE Filter -->
       <div class="filter-group filter-se-group">
         <label class="filter-label">
-          <span class="filter-icon">👤</span>
+          <span class="filter-icon"><i data-lucide="users"></i></span>
           SEs
         </label>
         <div class="filter-dropdown-container">
           <button type="button" class="filter-dropdown-btn" id="se-filter-btn">
             ${getSelectedSELabel(ses, currentUser)}
-            <span class="filter-dropdown-arrow">▼</span>
+            <i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>
           </button>
           <div class="filter-dropdown-menu hidden" id="se-filter-menu">
             <div class="filter-menu-header">
@@ -469,13 +405,13 @@ export function renderFilterBar(container, options, currentUser) {
       <!-- Region Filter -->
       <div class="filter-group filter-region-group">
         <label class="filter-label">
-          <span class="filter-icon">🌍</span>
+          <span class="filter-icon"><i data-lucide="globe"></i></span>
           Region
         </label>
         <div class="filter-dropdown-container">
           <button type="button" class="filter-dropdown-btn" id="region-filter-btn">
             ${getSelectedRegionLabel(regions)}
-            <span class="filter-dropdown-arrow">▼</span>
+            <i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>
           </button>
           <div class="filter-dropdown-menu hidden" id="region-filter-menu">
             <div class="filter-menu-header">
@@ -504,13 +440,13 @@ export function renderFilterBar(container, options, currentUser) {
       <!-- Product Filter -->
       <div class="filter-group filter-product-group">
         <label class="filter-label">
-          <span class="filter-icon">📦</span>
+          <span class="filter-icon"><i data-lucide="package"></i></span>
           Product
         </label>
         <div class="filter-dropdown-container">
           <button type="button" class="filter-dropdown-btn" id="product-filter-btn">
             ${getSelectedProductLabel(products)}
-            <span class="filter-dropdown-arrow">▼</span>
+            <i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>
           </button>
           <div class="filter-dropdown-menu hidden" id="product-filter-menu">
             <div class="filter-menu-header">
@@ -539,13 +475,13 @@ export function renderFilterBar(container, options, currentUser) {
       <!-- Status Filter -->
       <div class="filter-group filter-status-group">
         <label class="filter-label">
-          <span class="filter-icon">📊</span>
+          <span class="filter-icon"><i data-lucide="bar-chart-3"></i></span>
           Status
         </label>
         <div class="filter-dropdown-container">
           <button type="button" class="filter-dropdown-btn" id="status-filter-btn">
             ${getSelectedStatusLabel()}
-            <span class="filter-dropdown-arrow">▼</span>
+            <i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>
           </button>
           <div class="filter-dropdown-menu hidden" id="status-filter-menu">
             <div class="filter-menu-header">
@@ -565,10 +501,10 @@ export function renderFilterBar(container, options, currentUser) {
       <!-- Filter Action Buttons -->
       <div class="filter-group filter-actions-group">
         <button type="button" class="filter-view-all-btn" id="filter-view-all-btn" title="Show all POCs from all SEs">
-          👁️ All POCs
+          <i data-lucide="eye"></i> All POCs
         </button>
         <button type="button" class="filter-reset-btn" id="filter-reset-btn" title="Show only your assigned POCs (role-based default)">
-          🏠 My View
+          <i data-lucide="home"></i> My View
         </button>
       </div>
       
@@ -582,6 +518,11 @@ export function renderFilterBar(container, options, currentUser) {
   // Attach event listeners
   attachFilterListeners(container, ses, products, regions, currentUser);
   updateFilterSummary(ses, products, regions);
+
+  // Initialize Lucide icons in filter bar
+  if (window.lucide) {
+    lucide.createIcons();
+  }
 }
 
 /**
@@ -589,27 +530,27 @@ export function renderFilterBar(container, options, currentUser) {
  */
 function renderStatusOptions() {
   const statuses = [
-    { id: 'on_track', label: 'On Track', icon: '✅', color: 'success' },
-    { id: 'at_risk', label: 'At Risk', icon: '⚠️', color: 'warning' },
-    { id: 'at_risk_prep', label: 'At Risk (Customer Preparation)', icon: '🎯', color: 'orange' },
-    { id: 'at_risk_stalled', label: 'At Risk (Stalled)', icon: '⏸️', color: 'orange' },
-    { id: 'overdue', label: 'Overdue', icon: '🔴', color: 'danger' },
-    { id: 'in_review', label: 'In Review', icon: '📋', color: 'info' },
-    { id: 'this_month', label: 'Completing This Month', icon: '📅', color: 'info' },
-    { id: 'next_month', label: 'Completing Next Month', icon: '📅', color: 'info' },
-    { id: 'last_month', label: 'Completed Last Month', icon: '✓', color: 'info' }
+    { id: 'on_track', label: 'On Track', iconName: 'circle-check-big', color: 'success' },
+    { id: 'at_risk', label: 'At Risk', iconName: 'triangle-alert', color: 'warning' },
+    { id: 'at_risk_prep', label: 'At Risk (Customer Preparation)', iconName: 'target', color: 'orange' },
+    { id: 'at_risk_stalled', label: 'At Risk (Stalled)', iconName: 'circle-pause', color: 'orange' },
+    { id: 'overdue', label: 'Overdue', iconName: 'circle-x', color: 'danger' },
+    { id: 'in_review', label: 'In Review', iconName: 'clipboard-list', color: 'info' },
+    { id: 'this_month', label: 'Completing This Month', iconName: 'calendar', color: 'info' },
+    { id: 'next_month', label: 'Completing Next Month', iconName: 'calendar-days', color: 'info' },
+    { id: 'last_month', label: 'Completed Last Month', iconName: 'calendar-check', color: 'info' }
   ];
 
   return statuses.map(s => `
     <label class="filter-checkbox-item filter-status-item filter-status-${s.color}">
-      <input 
-        type="checkbox" 
-        value="${s.id}" 
+      <input
+        type="checkbox"
+        value="${s.id}"
         data-filter="status"
         ${filterState.selectedStatuses.has(s.id) ? 'checked' : ''}
       >
       <span class="filter-checkbox-label">
-        <span class="filter-status-icon">${s.icon}</span>
+        <span class="filter-status-icon"><i data-lucide="${s.iconName}"></i></span>
         ${s.label}
       </span>
     </label>
@@ -733,8 +674,6 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
   // Reset button - resets to role-based defaults
   const resetBtn = container.querySelector("#filter-reset-btn");
   resetBtn?.addEventListener("click", () => {
-    console.log("[Filters] Reset clicked - applying role defaults for:", currentUser?.role);
-    
     // Clear all filters first
     filterState.selectedSEs.clear();
     filterState.selectedProducts.clear();
@@ -746,19 +685,16 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
     if (currentUser?.role === "se") {
       // SE users: default to their own POCs
       filterState.selectedSEs.add(currentUser.id);
-      console.log("[Filters] SE user - defaulting to own POCs");
     } else if (currentUser?.role === "manager" && filterState.allowedSeIds?.size > 0) {
       // Managers: default to their mapped SEs
       filterState.allowedSeIds.forEach(seId => {
         filterState.selectedSEs.add(seId);
       });
-      console.log("[Filters] Manager - defaulting to mapped SEs:", Array.from(filterState.selectedSEs));
     } else if (currentUser?.role === "ae" && filterState.allowedSeIds?.size > 0) {
       // AEs: default to their mapped SEs
       filterState.allowedSeIds.forEach(seId => {
         filterState.selectedSEs.add(seId);
       });
-      console.log("[Filters] AE - defaulting to mapped SEs:", Array.from(filterState.selectedSEs));
     }
     // For other roles (pm, admin, etc.): no SE filter = see all POCs
     
@@ -779,8 +715,6 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
   // View All button - clears ALL filters to show everything
   const viewAllBtn = container.querySelector("#filter-view-all-btn");
   viewAllBtn?.addEventListener("click", () => {
-    console.log("[Filters] View All clicked - clearing all filters");
-    
     // Clear ALL filters including SE filter
     filterState.selectedSEs.clear();
     filterState.selectedProducts.clear();
@@ -1038,22 +972,22 @@ function updateCheckboxes(container, ses, products, regions) {
 function updateDropdownLabels(container, ses, products, regions, currentUser) {
   const seBtn = container.querySelector("#se-filter-btn");
   if (seBtn) {
-    seBtn.innerHTML = `${getSelectedSELabel(ses, currentUser)}<span class="filter-dropdown-arrow">▼</span>`;
+    seBtn.innerHTML = `${getSelectedSELabel(ses, currentUser)}<i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>`;
   }
 
   const regionBtn = container.querySelector("#region-filter-btn");
   if (regionBtn) {
-    regionBtn.innerHTML = `${getSelectedRegionLabel(regions)}<span class="filter-dropdown-arrow">▼</span>`;
+    regionBtn.innerHTML = `${getSelectedRegionLabel(regions)}<i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>`;
   }
 
   const productBtn = container.querySelector("#product-filter-btn");
   if (productBtn) {
-    productBtn.innerHTML = `${getSelectedProductLabel(products)}<span class="filter-dropdown-arrow">▼</span>`;
+    productBtn.innerHTML = `${getSelectedProductLabel(products)}<i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>`;
   }
 
   const statusBtn = container.querySelector("#status-filter-btn");
   if (statusBtn) {
-    statusBtn.innerHTML = `${getSelectedStatusLabel()}<span class="filter-dropdown-arrow">▼</span>`;
+    statusBtn.innerHTML = `${getSelectedStatusLabel()}<i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>`;
   }
 }
 
@@ -1074,15 +1008,15 @@ function updateFilterSummary(ses, products, regions) {
   // Status chips
   if (filterState.selectedStatuses.size > 0) {
     const statusLabels = {
-      'on_track': '✅ On Track',
-      'at_risk': '⚠️ At Risk',
-      'at_risk_prep': '🎯 At Risk (Customer Preparation)',
-      'at_risk_stalled': '⏸️ At Risk (Stalled)',
-      'overdue': '🔴 Overdue',
-      'in_review': '📋 In Review',
-      'this_month': '📅 This Month',
-      'next_month': '📅 Next Month',
-      'last_month': '✓ Last Month'
+      'on_track': 'On Track',
+      'at_risk': 'At Risk',
+      'at_risk_prep': 'At Risk (Customer Preparation)',
+      'at_risk_stalled': 'At Risk (Stalled)',
+      'overdue': 'Overdue',
+      'in_review': 'In Review',
+      'this_month': 'This Month',
+      'next_month': 'Next Month',
+      'last_month': 'Last Month'
     };
     
     filterState.selectedStatuses.forEach(status => {
@@ -1194,7 +1128,7 @@ export function refreshFilterSummary() {
     // Update status button label
     const statusBtn = document.querySelector("#status-filter-btn");
     if (statusBtn) {
-      statusBtn.innerHTML = `${getSelectedStatusLabel()}<span class="filter-dropdown-arrow">▼</span>`;
+      statusBtn.innerHTML = `${getSelectedStatusLabel()}<i data-lucide="chevron-down" class="filter-dropdown-arrow" style="width:14px;height:14px;"></i>`;
     }
   }
 }
@@ -1248,9 +1182,6 @@ export function applyBaseFilters(pocs, users, pocUseCasesMap, asOfDate) {
 }
 
 export function applyFilters(pocs, users, pocUseCasesMap, asOfDate) {
-  console.log("[Filters] Applying filters to", pocs.length, "POCs");
-  console.log("[Filters] View category:", filterState.viewCategory, "| Selected SEs:", filterState.selectedSEs.size);
-
   const filtered = pocs.filter(p => {
     // Skip deregistered POCs - they should not appear anywhere
     if (p.deregistered_at) return false;
@@ -1383,6 +1314,5 @@ export function applyFilters(pocs, users, pocUseCasesMap, asOfDate) {
     return true;
   });
 
-  console.log("[Filters] Filtered result:", filtered.length, "POCs");
   return filtered;
 }

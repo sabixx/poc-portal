@@ -215,8 +215,8 @@ function renderSearchResults(results, pocId, useCaseId) {
           <span class="fr-status-badge ${getStatusBadgeClass(feature.status)}">
             ${getStatusLabel(feature.status)}
           </span>
-          ${feature.release ? `<span class="fr-release">📦 ${feature.release}</span>` : ''}
-          ${feature.product ? `<span class="fr-product">🏷️ ${feature.product}</span>` : ''}
+          ${feature.release ? `<span class="fr-release"><i data-lucide="package" style="width:12px;height:12px;"></i> ${feature.release}</span>` : ''}
+          ${feature.product ? `<span class="fr-product"><i data-lucide="tag" style="width:12px;height:12px;"></i> ${feature.product}</span>` : ''}
         </div>
       </div>
       <button type="button" class="fr-result-link-btn" data-feature='${JSON.stringify(feature)}'>
@@ -224,6 +224,9 @@ function renderSearchResults(results, pocId, useCaseId) {
       </button>
     </div>
   `).join('');
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   // Attach link button listeners
   resultsContainer.querySelectorAll('.fr-result-link-btn').forEach(btn => {
@@ -394,7 +397,7 @@ function renderLinkedFeatures(links) {
         <div class="fr-linked-header">
           <div class="fr-linked-title">${feature.title}</div>
           <button type="button" class="fr-unlink-btn" data-link-id="${link.id}" title="Unlink">
-            🗑️
+            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
           </button>
         </div>
         
@@ -402,8 +405,8 @@ function renderLinkedFeatures(links) {
           <span class="fr-status-badge ${getStatusBadgeClass(feature.status)}">
             ${getStatusLabel(feature.status)}
           </span>
-          ${feature.release_version ? `<span class="fr-release">📦 ${feature.release_version}</span>` : ''}
-          ${feature.release_date ? `<span class="fr-release-date">📅 ${formatReleaseDate(feature.release_date)}</span>` : ''}
+          ${feature.release_version ? `<span class="fr-release"><i data-lucide="package" style="width:12px;height:12px;"></i> ${feature.release_version}</span>` : ''}
+          ${feature.release_date ? `<span class="fr-release-date"><i data-lucide="calendar" style="width:12px;height:12px;"></i> ${formatReleaseDate(feature.release_date)}</span>` : ''}
         </div>
         
         ${link.needed_by_date ? `
@@ -431,6 +434,9 @@ function renderLinkedFeatures(links) {
       </div>
     `;
   }).join('');
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   // Attach unlink button listeners
   linkedContainer.querySelectorAll('.fr-unlink-btn').forEach(btn => {

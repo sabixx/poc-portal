@@ -1501,3 +1501,107 @@
 :root[data-theme="dark"] .create-poc-matching-hint strong {
   color: #ffca2c;
 }
+
+/* ================================================================
+   COMPREHENSIVE DARK MODE — Remaining elements
+   ================================================================ */
+
+/* Timeframe selector text & buttons */
+:root[data-theme="dark"] .tf-selector-title,
+:root[data-theme="dark"] .tf-year-display,
+:root[data-theme="dark"] .tf-quarter-btn span,
+:root[data-theme="dark"] .tf-half-btn span {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .tf-selector-close,
+:root[data-theme="dark"] .tf-tab {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .tf-btn-clear,
+:root[data-theme="dark"] .tf-btn-cancel {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg-muted);
+}
+
+/* ER toggle, rows, cards */
+:root[data-theme="dark"] .poc-uc-er-toggle label {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .poc-uc-er-row--deal {
+  background: rgba(255, 152, 0, 0.08);
+}
+
+:root[data-theme="dark"] .poc-uc-er-row--poc-level {
+  background: rgba(156, 39, 176, 0.08);
+}
+
+:root[data-theme="dark"] .poc-uc-poc-ers-section {
+  background: rgba(156, 39, 176, 0.1);
+  border-color: rgba(206, 147, 216, 0.3);
+}
+
+:root[data-theme="dark"] .poc-uc-poc-ers-title {
+  color: #ce93d8;
+}
+
+:root[data-theme="dark"] .poc-uc-er-card {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .poc-uc-er-card--deal {
+  background: rgba(255, 152, 0, 0.1);
+}
+
+:root[data-theme="dark"] .poc-uc-er-field label {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .poc-uc-poc-ers-header td {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+/* Insight modal text */
+:root[data-theme="dark"] .insight-label,
+:root[data-theme="dark"] .insight-preview-company,
+:root[data-theme="dark"] .insight-preview-section h4 {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .insight-value,
+:root[data-theme="dark"] .insight-preview-title,
+:root[data-theme="dark"] .insight-preview-content {
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .insight-preview-section {
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .insight-btn-cancel {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .insight-btn-cancel:hover {
+  background: var(--bg-card);
+}
+
+/* Create POC hint dates */
+:root[data-theme="dark"] .create-poc-hint-dates {
+  color: var(--fg-muted);
+}
+
+/* ER needs button hover */
+:root[data-theme="dark"] .poc-uc-er-needs-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-subtle);
+}

@@ -118,14 +118,6 @@ function getCustomerFeedback(puc) {
  * @returns {string} HTML string
  */
 export function renderActiveUseCaseTable(pocUcs, pocId, featureRequests = [], customerName = '', showERs = true) {
-  console.log('[UC-Table] renderActiveUseCaseTable:', { 
-    pocUcs: pocUcs?.length, 
-    pocId, 
-    featureRequests: featureRequests?.length,
-    customerName,
-    showERs
-  });
-  
   // Group ERs by use_case ID
   const ersByUseCase = {};
   const pocLevelERs = [];
@@ -173,14 +165,14 @@ export function renderActiveUseCaseTable(pocUcs, pocId, featureRequests = [], cu
 
   const renderRow = ({ puc, uc, isPrep, isFirstNonPrep, ers, feedback }) => {
     const completed = !!puc.is_completed;
-    const statusLabel = completed ? "✓" : "○";
+    const statusLabel = completed ? '<i data-lucide="circle-check" style="width:16px;height:16px;"></i>' : '<i data-lucide="circle" style="width:16px;height:16px;"></i>';
     const statusClass = completed ? "uc-status-completed" : "uc-status-open";
 
     const ratingCell = renderRatingStars(puc.rating);
 
     const erCount = ers.length;
     const erBadge = erCount > 0
-      ? `<span class="uc-er-badge" title="${erCount} Feature Request(s)">📋 ${erCount}</span>`
+      ? `<span class="uc-er-badge" title="${erCount} Feature Request(s)"><i data-lucide="clipboard-list" style="width:12px;height:12px;"></i> ${erCount}</span>`
       : "";
 
     const firstNonPrepClass = isFirstNonPrep ? "poc-uc-first-nonprep-row" : "";
@@ -205,7 +197,7 @@ export function renderActiveUseCaseTable(pocUcs, pocId, featureRequests = [], cu
         </td>
         <td class="poc-uc-cell uc-actions">
           <button type="button" class="uc-link-btn" data-uc-id="${puc.use_case || puc.id}" data-poc-id="${pocId}" title="Link Feature Request">
-            🔗
+            <i data-lucide="link" style="width:14px;height:14px;"></i>
           </button>
         </td>
       </tr>
@@ -246,7 +238,7 @@ export function renderActiveUseCaseTable(pocUcs, pocId, featureRequests = [], cu
   const pocLevelSection = (showERs && pocLevelERs.length > 0) ? `
     <div class="poc-uc-poc-ers-section">
       <div class="poc-uc-poc-ers-title">
-        <span>📋 POC-Level Feature Requests</span>
+        <span><i data-lucide="clipboard-list" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> POC-Level Feature Requests</span>
         <span class="poc-uc-poc-ers-count">${pocLevelERs.length}</span>
       </div>
       <div class="poc-uc-poc-ers-list">
@@ -303,15 +295,15 @@ function renderERCard(fr, pocId, customerName = '') {
          data-customer-name="${escapeHtml(customerName)}" 
          data-customer-feedback="">
       <div class="poc-uc-er-header">
-        ${isDealBreaker ? '<span class="poc-uc-er-deal-badge" title="Deal Breaker">🚨</span>' : ""}
-        ${url 
+        ${isDealBreaker ? '<span class="poc-uc-er-deal-badge" title="Deal Breaker"><i data-lucide="octagon-alert" style="width:14px;height:14px;"></i></span>' : ""}
+        ${url
           ? `<a href="${url}" target="_blank" class="poc-uc-er-title-link">${escapeHtml(title)}</a>`
           : `<span class="poc-uc-er-title-text">${escapeHtml(title)}</span>`
         }
         <span class="poc-uc-er-status poc-uc-er-status--${normalizeStatus(status)}">${formatStatus(status)}</span>
-        
+
         <button type="button" class="poc-uc-er-insight-btn" data-action="create-insight" title="Create ProductBoard Insight">
-          💡 Insight
+          <i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Insight
         </button>
       </div>
       
@@ -336,7 +328,7 @@ function renderERCard(fr, pocId, customerName = '') {
           <div class="poc-uc-er-field">
             <label>Needs By</label>
             <button type="button" class="poc-uc-er-needs-btn" data-action="edit-timeframe" data-current="${escapeHtml(needsBy)}">
-              ${needsByDisplay} ✏️
+              ${needsByDisplay} <i data-lucide="pencil" style="width:12px;height:12px;"></i>
             </button>
           </div>
           
@@ -375,9 +367,7 @@ function renderERSubRow(fr, pocId, customerName = '', customerFeedback = '', isP
   
   // Format PB timeframe from feature_requests table (can be string or object)
   const pbTimeframe = formatPBTimeframe(feature.timeframe) || "—";
-  
-  console.log('[UC-Table] ER timeframe:', { title, rawTimeframe: feature.timeframe, formatted: pbTimeframe });
-  
+
   const rowClass = [
     "poc-uc-er-row",
     isDealBreaker ? "poc-uc-er-row--deal" : "",
@@ -394,7 +384,7 @@ function renderERSubRow(fr, pocId, customerName = '', customerFeedback = '', isP
       <td colspan="5" class="poc-uc-er-content">
 
         <div class="poc-uc-er-header">
-          ${isDealBreaker ? '<span class="poc-uc-er-deal-badge" title="Deal Breaker">🚨</span>' : ""}
+          ${isDealBreaker ? '<span class="poc-uc-er-deal-badge" title="Deal Breaker"><i data-lucide="octagon-alert" style="width:14px;height:14px;"></i></span>' : ""}
           ${url 
             ? `<a href="${url}" target="_blank" class="poc-uc-er-title-link">${escapeHtml(title)}</a>`
             : `<span class="poc-uc-er-title-text">${escapeHtml(title)}</span>`
@@ -403,7 +393,7 @@ function renderERSubRow(fr, pocId, customerName = '', customerFeedback = '', isP
           
           <!-- Create Insight Button -->
           <button type="button" class="poc-uc-er-insight-btn" data-action="create-insight" title="Create ProductBoard Insight">
-            💡 Insight
+            <i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Insight
           </button>
         </div>
         
@@ -428,7 +418,7 @@ function renderERSubRow(fr, pocId, customerName = '', customerFeedback = '', isP
             <div class="poc-uc-er-field">
               <label>Needs By</label>
               <button type="button" class="poc-uc-er-needs-btn" data-action="edit-timeframe" data-current="${escapeHtml(needsBy)}">
-                ${needsByDisplay} ✏️
+                ${needsByDisplay} <i data-lucide="pencil" style="width:12px;height:12px;"></i>
               </button>
             </div>
             
@@ -485,7 +475,7 @@ export function renderClosedUseCaseTable(pocUcs) {
 
   const renderRow = ({ puc, uc, isPrep }) => {
     const completed = !!puc.is_completed;
-    const statusLabel = completed ? "✓" : "○";
+    const statusLabel = completed ? '<i data-lucide="circle-check" style="width:16px;height:16px;"></i>' : '<i data-lucide="circle" style="width:16px;height:16px;"></i>';
     const statusClass = completed ? "uc-status-completed" : "uc-status-open";
 
     const ratingCell =
@@ -553,8 +543,6 @@ export function renderClosedUseCaseTable(pocUcs) {
  * @param {Function} onRefresh - Callback to refresh the card after changes (optional)
  */
 export function attachUseCaseTableListeners(container, onRefresh = null) {
-  console.log('[UC-Table] Attaching event listeners with delegation');
-  
   let commentTimeout = null;
   
   // USE EVENT DELEGATION
@@ -567,8 +555,7 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       if (!wrapper) return;
       
       const showERs = target.checked;
-      console.log('[UC-Table] ER toggle:', showERs);
-      
+
       // Store preference and trigger re-render
       wrapper.dataset.showErs = showERs;
       
@@ -586,11 +573,8 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       e.stopPropagation();
       const ucId = linkBtn.dataset.ucId;
       const pocId = linkBtn.dataset.pocId;
-      
-      console.log('[UC-Table] Link button clicked:', { pocId, ucId });
-      
+
       showProductBoardLinkModal(appState.pb, pocId, ucId, () => {
-        console.log('[UC-Table] Modal callback fired, refreshing...');
         if (onRefresh) {
           onRefresh();
         } else {
@@ -616,9 +600,7 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       
       const wrapper = container.querySelector('.poc-uc-table-wrapper');
       const pocId = wrapper?.dataset.pocId || '';
-      
-      console.log('[UC-Table] Create Insight clicked:', { featureTitle, customerName });
-      
+
       showCreateInsightModal({
         customerName,
         featureTitle,
@@ -641,20 +623,18 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       
       const frId = row.dataset.frId;
       const currentValue = btn.dataset.current || '';
-      
-      console.log('[UC-Table] Timeframe edit clicked:', { frId, currentValue });
-      
+
       showTimeframeSelector({
         currentValue: currentValue === '—' ? '' : currentValue,
         onSelect: async (result) => {
-          console.log('[UC-Table] Timeframe selected:', result);
           try {
             await appState.pb.collection('poc_feature_requests').update(frId, {
               needed_by: result.value || ''
             });
             
             btn.dataset.current = result.value || '';
-            btn.innerHTML = (result.display || '—') + ' ✏️';
+            btn.innerHTML = (result.display || '—') + ' <i data-lucide="pencil" style="width:12px;height:12px;"></i>';
+            if (window.lucide) lucide.createIcons();
           } catch (error) {
             console.error('[UC-Table] Failed to update timeframe:', error);
           }
@@ -682,8 +662,7 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       if (!row) return;
       
       const frId = row.dataset.frId;
-      console.log('[UC-Table] Importance changed:', { frId, value: target.value });
-      
+
       try {
         await appState.pb.collection('poc_feature_requests').update(frId, { 
           importance: target.value 
@@ -703,9 +682,7 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       
       const frId = row.dataset.frId;
       const isDealBreaker = target.checked;
-      
-      console.log('[UC-Table] Deal breaker toggled:', { frId, isDealBreaker });
-      
+
       if (isDealBreaker && !confirm('Mark as deal breaker?')) {
         target.checked = false;
         return;
@@ -736,10 +713,9 @@ export function attachUseCaseTableListeners(container, onRefresh = null) {
       if (!row) return;
       
       const frId = row.dataset.frId;
-      
+
       clearTimeout(commentTimeout);
       commentTimeout = setTimeout(async () => {
-        console.log('[UC-Table] Saving comment for:', frId);
         try {
           await appState.pb.collection('poc_feature_requests').update(frId, { 
             se_comment: target.value 

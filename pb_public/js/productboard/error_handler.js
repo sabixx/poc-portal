@@ -47,16 +47,19 @@ export function showErrorNotification(message, duration = 5000) {
   const notification = document.createElement('div');
   notification.className = 'pb-error-notification';
   notification.innerHTML = `
-    <div class="pb-error-icon">⚠️</div>
+    <div class="pb-error-icon"><i data-lucide="triangle-alert" style="width:18px;height:18px;"></i></div>
     <div class="pb-error-message">${escapeHtml(message)}</div>
     <button class="pb-error-close" aria-label="Close">×</button>
   `;
   
   document.body.appendChild(notification);
-  
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
+
   // Animate in
   setTimeout(() => notification.classList.add('show'), 10);
-  
+
   // Close button
   notification.querySelector('.pb-error-close').addEventListener('click', () => {
     closeNotification(notification);
@@ -77,11 +80,15 @@ export function showSuccessNotification(message, duration = 3000) {
   const notification = document.createElement('div');
   notification.className = 'pb-success-notification';
   notification.innerHTML = `
-    <div class="pb-success-icon">✓</div>
+    <div class="pb-success-icon"><i data-lucide="circle-check" style="width:18px;height:18px;"></i></div>
     <div class="pb-success-message">${escapeHtml(message)}</div>
   `;
   
   document.body.appendChild(notification);
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
+
   setTimeout(() => notification.classList.add('show'), 10);
   
   setTimeout(() => {

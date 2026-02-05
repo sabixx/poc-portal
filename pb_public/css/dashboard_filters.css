@@ -134,26 +134,27 @@
 /* Primary Row - Status Cards */
 .dashboard-row {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dashboard-row-primary {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .dashboard-row-secondary {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
 }
 
-/* Dashboard Cards - Base */
+/* Dashboard Cards - Base (Enhanced) */
 .dashboard-card {
   border-radius: 12px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-card);
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .dashboard-card[data-count]:not([data-count="0"]) {
@@ -161,84 +162,125 @@
 }
 
 .dashboard-card:hover:not([data-count="0"]) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
 }
 
 .dashboard-card-active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft), 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
-/* Primary Cards */
+/* Zero-count cards */
+.dashboard-card[data-count="0"] {
+  opacity: 0.5;
+}
+
+.dashboard-card[data-count="0"]:hover {
+  transform: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Dark mode shadow adjustments */
+:root[data-theme="dark"] .dashboard-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .dashboard-card:hover:not([data-count="0"]) {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Primary Cards - Compact for 5 in a row */
 .dashboard-card-primary {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
+  gap: 12px;
+  padding: 16px 16px;
 }
 
+/* Icon container with colored background */
 .dashboard-card-icon {
-  font-size: 32px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dashboard-card-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.75;
+}
+
+.dashboard-card:hover:not([data-count="0"]) .dashboard-card-icon {
+  transform: scale(1.1);
 }
 
 .dashboard-card-content {
   flex: 1;
+  min-width: 0;
 }
 
 .dashboard-card-count {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.1;
   color: var(--fg);
+  transition: transform 0.2s ease;
+}
+
+.dashboard-card:hover:not([data-count="0"]) .dashboard-card-count {
+  transform: scale(1.05);
 }
 
 .dashboard-card-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--fg-muted);
-  margin-top: 4px;
-}
-
-.dashboard-card-expand {
-  font-size: 12px;
-  color: var(--fg-muted);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.dashboard-card:hover .dashboard-card-expand {
-  opacity: 1;
-}
-
-.dashboard-card-active .dashboard-card-expand {
-  transform: rotate(180deg);
-  opacity: 1;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Filter icon on dashboard cards */
 .dashboard-card-filter-icon {
-  font-size: 14px;
   color: var(--fg-muted);
-  opacity: 0.5;
-  transition: opacity 0.2s;
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.3s ease;
+}
+
+.dashboard-card-filter-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .dashboard-card:hover .dashboard-card-filter-icon {
   opacity: 1;
+  transform: rotate(15deg);
 }
 
 .dashboard-card-active .dashboard-card-filter-icon {
   opacity: 1;
   color: var(--success);
+  transform: rotate(0deg);
 }
 
 .dashboard-card-filter-icon-small {
-  font-size: 12px;
   color: var(--fg-muted);
-  opacity: 0.5;
-  transition: opacity 0.2s;
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.3s ease;
+}
+
+.dashboard-card-filter-icon-small svg {
+  width: 14px;
+  height: 14px;
 }
 
 .dashboard-card-secondary:hover .dashboard-card-filter-icon-small {
@@ -254,13 +296,31 @@
 .dashboard-card-secondary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
+  gap: 12px;
+  padding: 14px 16px;
   background: var(--bg-elevated);
 }
 
+.dashboard-card-icon-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.dashboard-card-icon-small svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+}
+
 .dashboard-card-count-small {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--fg);
 }
@@ -269,17 +329,6 @@
   font-size: 12px;
   color: var(--fg-muted);
   margin-top: 2px;
-}
-
-.dashboard-card-expand-small {
-  font-size: 10px;
-  color: var(--fg-muted);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.dashboard-card-secondary:hover .dashboard-card-expand-small {
-  opacity: 1;
 }
 
 /* Card Color Variants */
@@ -291,11 +340,21 @@
   color: var(--success);
 }
 
+.dashboard-card-success .dashboard-card-icon {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--success);
+}
+
 .dashboard-card-warning {
   border-left: 4px solid #f59e0b;
 }
 
 .dashboard-card-warning .dashboard-card-count {
+  color: #f59e0b;
+}
+
+.dashboard-card-warning .dashboard-card-icon {
+  background: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
 
@@ -307,12 +366,76 @@
   color: #ea580c;
 }
 
+.dashboard-card-orange .dashboard-card-icon {
+  background: rgba(234, 88, 12, 0.1);
+  color: #ea580c;
+}
+
 .dashboard-card-danger {
   border-left: 4px solid var(--danger);
 }
 
 .dashboard-card-danger .dashboard-card-count {
   color: var(--danger);
+}
+
+.dashboard-card-danger .dashboard-card-icon {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--danger);
+}
+
+/* Dark mode icon backgrounds */
+:root[data-theme="dark"] .dashboard-card-success .dashboard-card-icon {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+
+:root[data-theme="dark"] .dashboard-card-warning .dashboard-card-icon {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+:root[data-theme="dark"] .dashboard-card-orange .dashboard-card-icon {
+  background: rgba(251, 146, 60, 0.12);
+  color: #fb923c;
+}
+
+:root[data-theme="dark"] .dashboard-card-danger .dashboard-card-icon {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+
+/* Staggered card entrance animation */
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-row .dashboard-card {
+  animation: cardSlideIn 0.3s ease both;
+}
+
+.dashboard-row .dashboard-card:nth-child(1) { animation-delay: 0ms; }
+.dashboard-row .dashboard-card:nth-child(2) { animation-delay: 40ms; }
+.dashboard-row .dashboard-card:nth-child(3) { animation-delay: 80ms; }
+.dashboard-row .dashboard-card:nth-child(4) { animation-delay: 120ms; }
+.dashboard-row .dashboard-card:nth-child(5) { animation-delay: 160ms; }
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card,
+  .dashboard-card-icon,
+  .dashboard-card-count,
+  .dashboard-card-filter-icon {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* Expandable POC List */
@@ -450,8 +573,8 @@
 
 .filter-search-group {
   flex: 1;
-  min-width: 200px;
-  max-width: 300px;
+  min-width: 180px;
+  max-width: 260px;
 }
 
 .filter-label {
@@ -466,12 +589,20 @@
 }
 
 .filter-icon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
 }
 
 /* Search Input */
 .filter-search-input {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 14px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -768,22 +899,28 @@
    RESPONSIVE ADJUSTMENTS
    ================================================================ */
 
-@media (max-width: 1200px) {
+@media (max-width: 860px) {
   .dashboard-row-primary {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
-  
+
   .dashboard-row-secondary {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .dashboard-summary-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .dashboard-summary-breakdown {
     margin-top: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-row-primary {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -792,13 +929,13 @@
   .dashboard-row-secondary {
     grid-template-columns: 1fr;
   }
-  
+
   .dashboard-card-primary {
-    padding: 16px 20px;
+    padding: 14px 16px;
   }
-  
+
   .dashboard-card-count {
-    font-size: 28px;
+    font-size: 24px;
   }
   
   .dashboard-summary-count {
@@ -866,8 +1003,20 @@
   position: relative;
 }
 
+.filter-status-item .filter-checkbox-label {
+  justify-content: flex-start;
+}
+
 .filter-status-item .filter-status-icon {
+  display: inline-flex;
+  align-items: center;
   margin-right: 8px;
+}
+
+.filter-status-item .filter-status-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
 }
 
 .filter-status-item.filter-status-success:has(input:checked) {
@@ -921,6 +1070,12 @@
   gap: 6px;
 }
 
+.filter-view-all-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}
+
 .filter-view-all-btn:hover {
   background: var(--accent);
   color: white;
@@ -951,10 +1106,16 @@
   gap: 6px;
 }
 
+.filter-reset-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}
+
 .filter-reset-btn:hover {
-  background: var(--bg-hover);
+  background: var(--accent-soft);
   color: var(--fg);
-  border-color: var(--border);
+  border-color: var(--border-subtle);
 }
 
 .filter-reset-btn:active {
@@ -1047,6 +1208,37 @@
 
 :root[data-theme="dark"] .dashboard-poc-list {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .filter-bar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="dark"] .dashboard-view-tabs {
+  border-bottom-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .view-tab {
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .view-tab:hover {
+  background: var(--bg-card);
+}
+
+:root[data-theme="dark"] .view-tab.active {
+  background: var(--bg-card);
+  color: var(--accent);
+}
+
+:root[data-theme="dark"] .dashboard-summary-header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="dark"] .empty-state {
+  border-color: var(--border-subtle);
 }
 
 /* ================================================================
@@ -1202,11 +1394,11 @@
   display: flex;
   gap: 0;
   padding: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--border-subtle);
+  border-radius: 0;
   margin-bottom: 20px;
-  overflow: hidden;
 }
 
 .view-tab {
@@ -1215,14 +1407,15 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 18px 24px;
-  background: transparent;
+  padding: 14px 20px;
+  background: var(--bg-subtle, #f5f7fa);
   border: none;
-  border-right: 1px solid var(--border-subtle);
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   transition: all 0.25s ease;
   color: var(--fg-muted);
   position: relative;
+  margin-bottom: -2px;
 }
 
 .view-tab:last-child {
@@ -1233,13 +1426,12 @@
   content: '';
   position: absolute;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 3px;
-  background: var(--accent);
-  transition: width 0.25s ease;
-  border-radius: 3px 3px 0 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 2px;
+  background: transparent;
+  transition: background 0.25s ease;
 }
 
 .view-tab:hover {
@@ -1248,21 +1440,31 @@
 }
 
 .view-tab:hover::after {
-  width: 40%;
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .view-tab.active {
-  background: var(--accent-soft);
+  background: var(--bg-card, #ffffff);
   color: var(--accent);
 }
 
 .view-tab.active::after {
-  width: 80%;
+  background: var(--accent);
+  opacity: 1;
 }
 
 .view-tab-icon {
-  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s ease;
+}
+
+.view-tab-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
 }
 
 .view-tab:hover .view-tab-icon {
@@ -1282,7 +1484,7 @@
   background: var(--bg);
   color: var(--fg-muted);
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 700;
   transition: all 0.2s ease;
@@ -1715,4 +1917,48 @@
 .settings-toast-info {
   background: var(--accent);
   color: white;
+}
+
+/* ================================================================
+   PRIORITY DOTS (ProductBoard importance levels)
+   ================================================================ */
+
+.priority-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.priority-critical { background: var(--danger, #dc2626); }
+.priority-important { background: #f59e0b; }
+.priority-nice { background: var(--accent, #1e40af); }
+.priority-low { background: var(--fg-muted, #6b7280); }
+.priority-unknown { background: var(--border-subtle, #d1d5db); }
+
+/* ================================================================
+   LUCIDE ICON UTILITIES
+   ================================================================ */
+
+/* Spinner animation for loader icon */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Filter dropdown arrow - Lucide chevron-down */
+.filter-dropdown-arrow {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.filter-dropdown-btn[aria-expanded="true"] .filter-dropdown-arrow,
+.filter-dropdown-menu:not(.hidden) ~ .filter-dropdown-btn .filter-dropdown-arrow {
+  transform: rotate(180deg);
 }

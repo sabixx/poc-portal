@@ -44,7 +44,7 @@ export function showUseCaseDetail(uc) {
   if (!usecaseDetailSection) return;
 
   const titleText = `${uc.code} v${uc.version || 1} – ${uc.title || ""}`;
-  ucDetailTitle.textContent = titleText;
+  if (ucDetailTitle) ucDetailTitle.textContent = titleText;
 
   // Update breadcrumb
   const breadcrumbName = document.getElementById("uc-breadcrumb-name");
@@ -52,6 +52,7 @@ export function showUseCaseDetail(uc) {
     breadcrumbName.textContent = uc.code || "Use Case";
   }
 
+  if (!ucDetailTableBody) return;
   ucDetailTableBody.innerHTML = "";
 
   const relevantPuc = appState.allPuc.filter(

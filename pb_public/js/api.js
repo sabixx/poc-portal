@@ -28,7 +28,6 @@ export async function loginUser(pb, email, password) {
  *  - roleText: text for the UI hint
  */
 export async function fetchAllData(pb, currentUser) {
-  console.log("[POC-PORTAL] Fetching data …");
 
   // users
   const users = await pb.collection("users").getFullList({
@@ -57,31 +56,18 @@ export async function fetchAllData(pb, currentUser) {
     expand: "use_case,poc",
   });
 
-  console.log(
-    "[POC-PORTAL] Loaded",
-    users.length,
-    "users,",
-    pocs.length,
-    "pocs,",
-    puc.length,
-    "poc_use_cases"
-  );
-
   return { users, pocs, puc, roleText };
 }
 
 /**
  * Batch fetch ALL comments at once (instead of per-POC)
- * This dramatically improves performance
  */
 export async function fetchAllComments(pb) {
-  console.log("[POC-PORTAL] Fetching all comments...");
   try {
     const comments = await pb.collection("comments").getFullList({
       sort: "-created",
       $autoCancel: false
     });
-    console.log("[POC-PORTAL] Loaded", comments.length, "comments total");
     return comments;
   } catch (error) {
     console.error("[POC-PORTAL] Failed to fetch comments:", error);
@@ -95,43 +81,29 @@ export async function fetchAllComments(pb) {
  * @param {Array} pocs - Array of POC objects (optional, will fetch for all if provided)
  */
 export async function fetchAllFeatureRequests(pb, pocs = []) {
-  console.log("[POC-PORTAL] Fetching all feature requests...");
-
-  // First, try the simplest possible query to test collection access
-  console.log("[POC-PORTAL] Testing basic collection access...");
+  // Test collection access
   try {
-    const testResult = await pb.collection("poc_feature_requests").getList(1, 1, {
+    await pb.collection("poc_feature_requests").getList(1, 1, {
       $autoCancel: false
     });
-    console.log("[POC-PORTAL] Basic access OK - collection has", testResult.totalItems, "total records");
   } catch (testError) {
-    console.error("[POC-PORTAL] Basic collection access FAILED:", testError.message);
-    console.error("[POC-PORTAL] This suggests a permission or collection configuration issue");
-    console.error("[POC-PORTAL] Error status:", testError.status, "data:", JSON.stringify(testError.data));
-
-    // Return empty - can't access the collection at all
+    console.error("[POC-PORTAL] Feature requests collection access failed:", testError.message);
     return [];
   }
 
-  // If we have POCs, fetch per-POC SEQUENTIALLY
+  // Fetch per-POC sequentially
   if (pocs && pocs.length > 0) {
-    console.log("[POC-PORTAL] Using sequential per-POC fetch for", pocs.length, "POCs...");
-
     const allRecords = [];
-    let pocsWithERs = 0;
     let failCount = 0;
 
     for (const poc of pocs) {
       try {
-        // Use getList with minimal options
         const result = await pb.collection("poc_feature_requests").getList(1, 100, {
           filter: `poc = "${poc.id}"`,
           $autoCancel: false
         });
 
         if (result.items.length > 0) {
-          pocsWithERs++;
-          // Expand each one individually
           for (const fr of result.items) {
             try {
               const expanded = await pb.collection("poc_feature_requests").getOne(fr.id, {
@@ -140,24 +112,19 @@ export async function fetchAllFeatureRequests(pb, pocs = []) {
               });
               allRecords.push(expanded);
             } catch (expErr) {
-              console.warn("[POC-PORTAL] Could not expand FR", fr.id);
               allRecords.push(fr);
             }
           }
         }
       } catch (error) {
         failCount++;
-        if (failCount <= 3) {
-          console.warn("[POC-PORTAL] Failed for POC", poc.id, ":", error.message);
-        }
       }
     }
 
-    if (failCount > 3) {
-      console.warn("[POC-PORTAL] ... and", failCount - 3, "more failures");
+    if (failCount > 0) {
+      console.warn("[POC-PORTAL] Feature request fetch: " + failCount + " POC(s) failed");
     }
 
-    console.log("[POC-PORTAL] Loaded", allRecords.length, "feature requests from", pocsWithERs, "POCs (", failCount, "failures)");
     return allRecords;
   }
 

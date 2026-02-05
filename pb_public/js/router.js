@@ -144,7 +144,10 @@ export function setNavigationHandler(handler) {
  * Call this after the app is ready to handle navigation
  */
 export function initRouter() {
-  if (routerState.initialized) return;
+  if (routerState.initialized) {
+    // Already initialized - return current route for callers that need it
+    return routerState.currentRoute || getCurrentRoute();
+  }
 
   console.log("[Router] Initializing...");
 

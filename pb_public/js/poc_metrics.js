@@ -24,17 +24,17 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
 
       <div class="poc-stats-row">
         <div class="poc-stat-item">
-          <span class="poc-stat-icon">⭐</span>
+          <span class="poc-stat-icon"><i data-lucide="star" style="width:14px;height:14px;"></i></span>
           <span class="poc-stat-value">${avgRating}</span>
           <span class="poc-stat-label">avg rating</span>
         </div>
         <div class="poc-stat-item">
-          <span class="poc-stat-icon">💬</span>
+          <span class="poc-stat-icon"><i data-lucide="message-circle" style="width:14px;height:14px;"></i></span>
           <span class="poc-stat-value">${feedbackCount}</span>
           <span class="poc-stat-label">feedback</span>
         </div>
         <div class="poc-stat-item">
-          <span class="poc-stat-icon">📋</span>
+          <span class="poc-stat-icon"><i data-lucide="clipboard-list" style="width:14px;height:14px;"></i></span>
           <span class="poc-stat-value">${totalUc}</span>
           <span class="poc-stat-label">total UCs</span>
         </div>
@@ -46,7 +46,7 @@ export function renderPocMetrics({ completedUc, totalUc, avgRating, feedbackCoun
         </button>
         ${showProductBoardBtn ? `
           <button type="button" class="poc-link-productboard-btn" title="Link to ProductBoard">
-            🔗 ProductBoard
+            <i data-lucide="link" style="width:14px;height:14px;"></i> ProductBoard
           </button>
         ` : ''}
         ${showRemoveBtn ? `

@@ -32,9 +32,7 @@ export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, ref
     options = refreshCallback;
     refreshCallback = null;
   }
-  
-  console.log('[ProductBoard Modal] Opening modal', { pocId, useCaseId, hasRefreshCallback: !!refreshCallback });
-  
+
   // Store refresh callback
   onRefreshCallback = refreshCallback;
   
@@ -48,32 +46,24 @@ export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, ref
   let actualUseCaseId = useCaseId;
   if (useCaseId) {
     try {
-      console.log('[ProductBoard Modal] Attempting to resolve poc_use_case:', useCaseId);
-      
       // Try to get it as a poc_use_case first
       const pocUseCase = await pb.collection('poc_use_cases').getOne(useCaseId, {
         $autoCancel: false
       }).catch(err => {
-        console.log('[ProductBoard Modal] Not a poc_use_case (or no permission):', err.status);
         return null;
       });
-      
+
       if (pocUseCase) {
-        console.log('[ProductBoard Modal] Found poc_use_case:', pocUseCase);
-        
         // If successful, extract the actual use_case ID
         if (pocUseCase.use_case) {
           actualUseCaseId = pocUseCase.use_case;
-          console.log('[ProductBoard Modal] Resolved poc_use_case to use_case:', actualUseCaseId);
         } else {
           console.warn('[ProductBoard Modal] poc_use_case has no use_case field!');
         }
-      } else {
-        console.log('[ProductBoard Modal] Using provided ID as use_case ID');
       }
     } catch (error) {
       // If it fails, assume it's already a use_case ID
-      console.log('[ProductBoard Modal] Error resolving poc_use_case:', error.message);
+      console.error('[ProductBoard Modal] Error resolving poc_use_case:', error);
     }
   }
   
@@ -81,20 +71,17 @@ export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, ref
   window.pb = pb;
   window.currentPocId = pocId;
   window.currentUseCaseId = actualUseCaseId;
-  
-  console.log('[ProductBoard Modal] Set globals:', { 
-    'window.pb': !!window.pb, 
-    'window.currentPocId': window.currentPocId,
-    'window.currentUseCaseId': window.currentUseCaseId
-  });
-  
+
   const allowCreateER = options.allowCreateER !== false;
   
   // Create modal
   const modal = createModalHTML(allowCreateER);
   document.body.appendChild(modal);
   currentModal = modal;
-  
+
+  // Render Lucide icons after modal is in the DOM
+  if (window.lucide) lucide.createIcons();
+
   // Setup events - use actualUseCaseId
   setupEventListeners(pb, pocId, actualUseCaseId);
   
@@ -107,7 +94,6 @@ export async function showProductBoardLinkModal(pb, pocId, useCaseId = null, ref
  */
 function triggerRefresh() {
   if (onRefreshCallback && typeof onRefreshCallback === 'function') {
-    console.log('[ProductBoard Modal] Triggering refresh callback');
     try {
       onRefreshCallback();
     } catch (e) {
@@ -132,7 +118,7 @@ function createModalHTML(allowCreateER) {
       <div class="pb-modal-body">
         <!-- Existing Links -->
         <div class="pb-existing-links-section" data-element="existing-links-section" style="display:none;">
-          <h3>📎 Currently Linked ERs</h3>
+          <h3><i data-lucide="paperclip" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Currently Linked ERs</h3>
           <div data-element="existing-links-list"></div>
         </div>
         
@@ -162,7 +148,7 @@ function createModalHTML(allowCreateER) {
         
         <!-- Hot ERs -->
         <div class="pb-hot-ers-section">
-          <h3>🔥 Trending ERs (from Sales Engineers)</h3>
+          <h3><i data-lucide="trending-up" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Trending ERs (from Sales Engineers)</h3>
           <div data-element="hot-ers-list">
             <div class="pb-loading">Loading hot ERs...</div>
           </div>
@@ -170,7 +156,7 @@ function createModalHTML(allowCreateER) {
         
         <!-- Recent Features -->
         <div class="pb-recent-section">
-          <h3>🔄 Recently Updated Features (ProductBoard)</h3>
+          <h3><i data-lucide="refresh-cw" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i> Recently Updated Features (ProductBoard)</h3>
           <div data-element="recent-list">
             <div class="pb-loading">Loading recent features...</div>
           </div>
@@ -178,11 +164,11 @@ function createModalHTML(allowCreateER) {
         
         ${allowCreateER ? `
         <div class="pb-create-er-hint">
-          <small>💡 Can't find what you're looking for? Create a new ER only if nothing matches.</small>
+          <small><i data-lucide="lightbulb" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Can't find what you're looking for? Create a new ER only if nothing matches.</small>
         </div>
         <div class="pb-create-er-section">
           <button class="pb-btn pb-btn-secondary pb-btn-sm" type="button" data-action="create-er">
-            ➕ Create New ER
+            <i data-lucide="circle-plus" style="width:14px;height:14px;"></i> Create New ER
           </button>
         </div>
         ` : ''}
@@ -193,7 +179,7 @@ function createModalHTML(allowCreateER) {
       </div>
     </div>
   `;
-  
+
   return overlay;
 }
 
@@ -247,9 +233,7 @@ function setupEventListeners(pb, pocId, useCaseId) {
  */
 function handleSearch(query, product, resultsContainer) {
   clearTimeout(searchTimeout);
-  
-  console.log('[ProductBoard Search] Query:', query, 'Product:', product);
-  
+
   if (query.length < MIN_SEARCH_LENGTH) {
     resultsContainer.innerHTML = '<div class="pb-search-hint">Type to search ProductBoard...</div>';
     return;
@@ -260,7 +244,6 @@ function handleSearch(query, product, resultsContainer) {
   searchTimeout = setTimeout(async () => {
     try {
       const features = await searchFeatures(query, product);
-      console.log('[ProductBoard Search] Found', features.length, 'features');
       renderSearchResults(resultsContainer, features);
     } catch (error) {
       console.error('[ProductBoard Search] Error:', error);
@@ -329,18 +312,17 @@ async function loadModalData(pb, pocId, useCaseId, existingLinks = null) {
   try {
     // Load products
     await loadProducts();
-    
+
     // Auto-fill product
     if (useCaseId) {
       await autoFillFromUseCase(pb, useCaseId);
     } else {
       await autoFillFromPOC(pb, pocId);
     }
-    
+
     // Load existing links - use provided links or fetch
     let links;
     if (existingLinks) {
-      console.log('[ProductBoard Modal] Using pre-fetched links:', existingLinks.length);
       // Filter to this use case if specified
       if (useCaseId) {
         links = existingLinks.filter(link => link.use_case === useCaseId);
@@ -349,7 +331,6 @@ async function loadModalData(pb, pocId, useCaseId, existingLinks = null) {
       }
       renderExistingLinks(links);
     } else {
-      console.log('[ProductBoard Modal] Fetching existing links...');
       links = await loadExistingLinks(pb, pocId, useCaseId);
     }
     
@@ -361,12 +342,12 @@ async function loadModalData(pb, pocId, useCaseId, existingLinks = null) {
     });
     
     // Load Hot ERs
-    const hotERsList = currentModal.querySelector('[data-element="hot-ers-list"]');
-    await loadAndRenderHotERs(pb, pocId, hotERsList);
-    
+    const hotERsList = currentModal?.querySelector('[data-element="hot-ers-list"]');
+    if (hotERsList) await loadAndRenderHotERs(pb, pocId, hotERsList);
+
     // Load recent features
-    const recentList = currentModal.querySelector('[data-element="recent-list"]');
-    await loadAndRenderRecentFeatures(recentList);
+    const recentList = currentModal?.querySelector('[data-element="recent-list"]');
+    if (recentList) await loadAndRenderRecentFeatures(recentList);
     
     // Mark already-linked buttons
     markLinkedButtons();
@@ -385,7 +366,8 @@ function markLinkedButtons() {
   currentModal.querySelectorAll('[data-action="link"]').forEach(button => {
     const featureId = button.dataset.featureId;
     if (window.linkedFeatureIds.has(featureId)) {
-      button.textContent = '✓ Linked';
+      button.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Linked';
+      if (window.lucide) lucide.createIcons();
       button.classList.add('pb-btn-linked');
     }
   });
@@ -420,17 +402,14 @@ async function loadProducts() {
  */
 async function autoFillFromUseCase(pb, useCaseId) {
   try {
-    console.log('[ProductBoard Modal] Auto-filling from use case:', useCaseId);
+    if (!currentModal) return;
     const useCase = await pb.collection('use_cases').getOne(useCaseId);
-    console.log('[ProductBoard Modal] Use case data:', useCase);
-    
+
     if (useCase.product) {
       const select = currentModal.querySelector('[data-element="product-select"]');
-      console.log('[ProductBoard Modal] Setting product to:', useCase.product);
-      select.value = useCase.product;
-      console.log('[ProductBoard Modal] Product select value after set:', select.value);
-    } else {
-      console.log('[ProductBoard Modal] Use case has no product set');
+      if (select) {
+        select.value = useCase.product;
+      }
     }
   } catch (error) {
     console.error('[ProductBoard Modal] Auto-fill error:', error);
@@ -442,12 +421,13 @@ async function autoFillFromUseCase(pb, useCaseId) {
  */
 async function autoFillFromPOC(pb, pocId) {
   try {
+    if (!currentModal) return;
     const pocUseCases = await pb.collection('poc_use_cases').getFullList({
       filter: `poc = "${pocId}"`,
       expand: 'use_case',
       $autoCancel: false
     });
-    
+
     const productCounts = {};
     pocUseCases.forEach(item => {
       if (item.expand?.use_case?.product) {
@@ -455,13 +435,14 @@ async function autoFillFromPOC(pb, pocId) {
         productCounts[product] = (productCounts[product] || 0) + 1;
       }
     });
-    
+
     const mostCommon = Object.entries(productCounts).sort((a, b) => b[1] - a[1])[0];
-    
+
     if (mostCommon) {
       const select = currentModal.querySelector('[data-element="product-select"]');
-      select.value = mostCommon[0];
-      console.log('[ProductBoard Modal] Auto-filled product from POC:', mostCommon[0]);
+      if (select) {
+        select.value = mostCommon[0];
+      }
     }
   } catch (error) {
     console.error('[ProductBoard Modal] Auto-fill from POC error:', error);
@@ -487,8 +468,10 @@ function renderExistingLinks(links) {
  * Load existing links (with fetch)
  */
 async function loadExistingLinks(pb, pocId, useCaseId) {
+  if (!currentModal) return [];
   const section = currentModal.querySelector('[data-element="existing-links-section"]');
   const container = currentModal.querySelector('[data-element="existing-links-list"]');
+  if (!section || !container) return [];
   
   try {
     const links = await getExistingLinks(pb, pocId, useCaseId);
@@ -521,10 +504,9 @@ async function loadExistingLinks(pb, pocId, useCaseId) {
         return link;
       })
     );
-    
+
     container.innerHTML = enrichedLinks.map(link => renderExistingLink(link)).join('');
-    
-    console.log('[ProductBoard Modal] Loaded', links.length, 'existing links');
+
     return links;
   } catch (error) {
     console.error('[ProductBoard Modal] Load existing links error:', error);
@@ -560,7 +542,7 @@ function renderExistingLink(link) {
         data-action="unlink"
         data-link-id="${link.id}"
       >
-        ✓ Linked
+        <i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Linked
       </button>
     </div>
   `;
@@ -571,9 +553,7 @@ function renderExistingLink(link) {
  */
 async function handleLink(button, pb, pocId, useCaseId) {
   const featureId = button.dataset.featureId;
-  
-  console.log('[ProductBoard Modal] handleLink called with:', { pocId, useCaseId, featureId });
-  
+
   if (!pocId) {
     alert('POC ID not set');
     return;
@@ -586,26 +566,23 @@ async function handleLink(button, pb, pocId, useCaseId) {
   try {
     // Check if already linked
     const existingLinks = await getExistingLinks(pb, pocId, useCaseId);
-    console.log('[ProductBoard Modal] Found', existingLinks.length, 'existing links for useCaseId:', useCaseId);
-    
-    const alreadyLinked = existingLinks.find(link => 
+
+    const alreadyLinked = existingLinks.find(link =>
       link.expand?.feature_request?.external_id === featureId ||
       link.feature_request === featureId
     );
-    
+
     if (alreadyLinked) {
       // Already linked - UNLINK
       await deleteLink(pb, alreadyLinked.id);
       button.textContent = 'Link';
       button.classList.remove('pb-btn-linked');
-      console.log('[ProductBoard] Unlinked:', featureId);
     } else {
       // Not linked - LINK
-      console.log('[ProductBoard Modal] Creating link with useCaseId:', useCaseId);
       await createLink(pb, pocId, featureId, useCaseId);
-      button.textContent = '✓ Linked';
+      button.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i> Linked';
+      if (window.lucide) lucide.createIcons();
       button.classList.add('pb-btn-linked');
-      console.log('[ProductBoard] Linked:', featureId);
     }
     
     // Refresh existing links section
@@ -645,7 +622,6 @@ async function handleUnlink(button, pb) {
     await loadExistingLinks(pb, window.currentPocId, window.currentUseCaseId);
     showSuccessNotification('Link removed');
     triggerRefresh();
-    console.log('[ProductBoard] Unlinked:', linkId);
   } catch (error) {
     console.error('[ProductBoard] Unlink error:', error);
     const errorMessage = handleProductBoardError(error, 'remove link');

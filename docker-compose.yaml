@@ -1,6 +1,7 @@
 services:
   pocinsights:
     build: .
+    image: pocinsights
     ports:
       - "8090:8090"
       - "5001:5001"

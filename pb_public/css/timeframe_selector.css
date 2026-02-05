@@ -368,3 +368,25 @@
   background: var(--bg-elevated);
   border-color: var(--border-subtle);
 }
+
+:root[data-theme="dark"] .tf-selector-title,
+:root[data-theme="dark"] .tf-year-display {
+  color: var(--fg);
+}
+
+:root[data-theme="dark"] .tf-selector-close,
+:root[data-theme="dark"] .tf-tab {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .tf-quarter-btn span,
+:root[data-theme="dark"] .tf-half-btn span {
+  color: var(--fg-muted);
+}
+
+:root[data-theme="dark"] .tf-btn-clear,
+:root[data-theme="dark"] .tf-btn-cancel {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--fg-muted);
+}

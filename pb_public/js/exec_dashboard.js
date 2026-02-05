@@ -1,5 +1,5 @@
 // exec_dashboard.js - Executive Dashboard Main Module
-// VERSION 1.0 - Revenue-weighted ER analytics
+// VERSION 2.0 - Revenue-weighted ER analytics with Lucide icons
 
 import { appState } from "./state.js";
 import { categorizePoc } from "./poc_status.js";
@@ -19,7 +19,7 @@ import {
 } from "./exec_filters.js";
 import { renderERDrilldown, renderSummaryDrilldown, hideDrilldown } from "./exec_drilldown.js";
 
-console.log("[ExecDashboard] VERSION 1.0 - Executive dashboard initialized");
+console.log("[ExecDashboard] VERSION 2.0 - Executive dashboard initialized");
 
 // DOM elements
 let filterBarEl = null;
@@ -67,6 +67,12 @@ export function initExecDashboard() {
   if (!filterBarEl || !summaryEl || !topERsEl) {
     console.error("[ExecDashboard] Required DOM elements not found");
     return;
+  }
+
+  // Initialize Lucide icons for static elements (back button)
+  const execSection = document.getElementById('exec-dashboard-section');
+  if (window.lucide && execSection) {
+    lucide.createIcons();
   }
 
   // Build POC use cases map from appState
@@ -226,25 +232,48 @@ function renderSummary(data, users, asOfDate) {
   summaryEl.innerHTML = `
     <div class="exec-summary-grid">
       <div class="exec-summary-card clickable" data-metric="total">
-        <span class="exec-summary-label">Total AEB in Scope</span>
-        <span class="exec-summary-value money">${formatAEB(data.totalAEB)}</span>
+        <div class="exec-summary-icon" style="background: rgba(30,64,175,0.1); color: #1e40af;">
+          <i data-lucide="dollar-sign"></i>
+        </div>
+        <div class="exec-summary-info">
+          <span class="exec-summary-label">Total AEB in Scope</span>
+          <span class="exec-summary-value money">${formatAEB(data.totalAEB)}</span>
+        </div>
       </div>
       <div class="exec-summary-card open clickable" data-metric="open">
-        <span class="exec-summary-label">Open AEB</span>
-        <span class="exec-summary-value money">${formatAEB(data.openAEB)}</span>
+        <div class="exec-summary-icon" style="background: rgba(34,197,94,0.1); color: #22c55e;">
+          <i data-lucide="trending-up"></i>
+        </div>
+        <div class="exec-summary-info">
+          <span class="exec-summary-label">Open AEB</span>
+          <span class="exec-summary-value money">${formatAEB(data.openAEB)}</span>
+        </div>
       </div>
       <div class="exec-summary-card closed clickable" data-metric="closed">
-        <span class="exec-summary-label">Closed AEB</span>
-        <span class="exec-summary-value money">${formatAEB(data.closedAEB)}</span>
+        <div class="exec-summary-icon" style="background: rgba(59,130,246,0.1); color: #3b82f6;">
+          <i data-lucide="archive"></i>
+        </div>
+        <div class="exec-summary-info">
+          <span class="exec-summary-label">Closed AEB</span>
+          <span class="exec-summary-value money">${formatAEB(data.closedAEB)}</span>
+        </div>
       </div>
       ${data.hasSelectedERs ? `
         <div class="exec-summary-card impacted clickable" data-metric="impacted">
-          <span class="exec-summary-label">Open AEB (Selected ERs)</span>
-          <span class="exec-summary-value money">${formatAEB(data.openAEBWithSelectedERs)}</span>
+          <div class="exec-summary-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+            <i data-lucide="target"></i>
+          </div>
+          <div class="exec-summary-info">
+            <span class="exec-summary-label">Open AEB (Selected ERs)</span>
+            <span class="exec-summary-value money">${formatAEB(data.openAEBWithSelectedERs)}</span>
+          </div>
         </div>
       ` : ''}
     </div>
   `;
+
+  // Render Lucide icons in summary cards
+  if (window.lucide) lucide.createIcons();
 
   // Attach click handlers for drill-down
   summaryEl.querySelectorAll('.exec-summary-card.clickable').forEach(card => {
@@ -462,23 +491,26 @@ function renderTopERs(ersData, allEROptions) {
             const totalColorClass = atRiskAEB > 0 ? 'aeb-at-risk' : 'aeb-won';
             return `
             <tr data-er-id="${erData.er.id}">
-              <td class="exec-er-rank">${idx + 1}</td>
+              <td class="exec-er-rank"><span class="exec-er-rank-badge">${idx + 1}</span></td>
               <td class="exec-er-title" title="${escapeHtml(erData.er.title)}">${escapeHtml(truncate(erData.er.title, 60))}</td>
               <td class="exec-er-aeb ${totalColorClass}">${formatAEB(erData.totalAEB)}</td>
               <td class="exec-er-count">${erData.customers.length}</td>
               <td class="exec-er-product">${Array.from(erData.products).slice(0, 2).join(', ')}${erData.products.size > 2 ? '...' : ''}</td>
-              <td class="exec-er-expand-icon">&#9654;</td>
+              <td class="exec-er-expand"><i data-lucide="chevron-right"></i></td>
             </tr>
           `}).join('')}
         </tbody>
       </table>
     ` : `
       <div class="exec-no-data">
-        <div class="exec-no-data-icon">📊</div>
+        <div class="exec-no-data-icon"><i data-lucide="bar-chart-3" style="width:32px;height:32px;"></i></div>
         <div>No ERs found for the current filters</div>
       </div>
     `}
   `;
+
+  // Render Lucide icons
+  if (window.lucide) lucide.createIcons();
 
   // Attach toggle handlers
   topERsEl.querySelectorAll('.exec-top-n-btn').forEach(btn => {

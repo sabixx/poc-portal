@@ -8,28 +8,12 @@
  * @returns {Promise<Array>} Array of feature results
  */
 export async function searchProductBoardFeatures(query) {
-  console.log('[ProductBoard API] === SEARCH START ===');
-  console.log('[ProductBoard API] Query:', query);
-  console.log('[ProductBoard API] Query type:', typeof query);
-  console.log('[ProductBoard API] Query length:', query?.length);
-  
   try {
     const url = `/api/productboard/search?query=${encodeURIComponent(query)}`;
-    console.log('[ProductBoard API] Full URL:', url);
-    console.log('[ProductBoard API] Encoded query:', encodeURIComponent(query));
-    
-    console.log('[ProductBoard API] Fetching...');
     const response = await fetch(url);
-    
-    console.log('[ProductBoard API] Response received');
-    console.log('[ProductBoard API] Response status:', response.status);
-    console.log('[ProductBoard API] Response ok:', response.ok);
-    console.log('[ProductBoard API] Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[ProductBoard API] Error response body:', errorText);
-      
       if (response.status === 401) {
         throw new Error('Authentication required');
       }
@@ -42,30 +26,10 @@ export async function searchProductBoardFeatures(query) {
       throw new Error(`Server error: ${response.status} - ${errorText}`);
     }
 
-    console.log('[ProductBoard API] Parsing JSON...');
     const data = await response.json();
-    console.log('[ProductBoard API] Parsed data:', data);
-    console.log('[ProductBoard API] Data type:', typeof data);
-    console.log('[ProductBoard API] Data keys:', Object.keys(data));
-    
-    const results = data.data || [];
-    console.log('[ProductBoard API] Results array:', results);
-    console.log('[ProductBoard API] Results length:', results.length);
-    console.log('[ProductBoard API] Results type:', typeof results);
-    console.log('[ProductBoard API] Is array?:', Array.isArray(results));
-    
-    if (results.length > 0) {
-      console.log('[ProductBoard API] First result:', results[0]);
-    }
-    
-    console.log('[ProductBoard API] === SEARCH END ===');
-    return results;
-    
+    return data.data || [];
   } catch (error) {
-    console.error('[ProductBoard API] === SEARCH ERROR ===');
-    console.error('[ProductBoard API] Error type:', error.constructor.name);
-    console.error('[ProductBoard API] Error message:', error.message);
-    console.error('[ProductBoard API] Error stack:', error.stack);
+    console.error('[ProductBoard API] Search error:', error.message);
     throw error;
   }
 }

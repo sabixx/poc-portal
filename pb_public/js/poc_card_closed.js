@@ -165,13 +165,13 @@ export async function renderClosedPocCard(p) {
     const diff = (actualEndDate - pocEndPlan) / DAY_MS;
     if (diff < -0.5) {
       closeTimingLabel = "early";
-      timingIcon = "🎯";
+      timingIcon = '<i data-lucide="target" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
     } else if (diff > 0.5) {
       closeTimingLabel = "late";
-      timingIcon = "⚠️";
+      timingIcon = '<i data-lucide="triangle-alert" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
     } else {
       closeTimingLabel = "on time";
-      timingIcon = "✓";
+      timingIcon = '<i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;"></i>';
     }
   }
 
@@ -236,7 +236,7 @@ export async function renderClosedPocCard(p) {
           <span class="poc-meta-item poc-aeb-editable">
             <strong>AEB:</strong> 
             <span class="poc-aeb-display">${aebValue ? `$${aebValue}` : "–"}</span>
-            ${canEditOutcome ? `<button type="button" class="poc-aeb-edit-btn" title="Edit AEB">✎</button>` : ""}
+            ${canEditOutcome ? `<button type="button" class="poc-aeb-edit-btn" title="Edit AEB"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>` : ""}
           </span>
           ${pocDurationLabel !== "–" ? `<span class="poc-meta-item"><strong>Duration:</strong> ${pocDurationLabel}${closeTimingLabel ? ` <span class="poc-timing-badge">${timingIcon} ${closeTimingLabel}</span>` : ""}</span>` : ""}
         </div>
@@ -359,9 +359,11 @@ export async function renderClosedPocCard(p) {
     </div>
   `;
 
+  // Render Lucide icons in the card
+  if (window.lucide) lucide.createIcons();
+
   // Create refresh function for this card (for when new ERs are linked)
   const refreshCard = async () => {
-    console.log('[POC-Card-Closed] Refreshing card for POC:', p.id);
     try {
       const newFeatureRequests = await appState.pb
         .collection('poc_feature_requests')
@@ -400,8 +402,6 @@ export async function renderClosedPocCard(p) {
           toggleBtn.classList.remove('poc-toggle-details-btn--has-ers');
         }
       }
-
-      console.log('[POC-Card-Closed] Card refreshed successfully');
     } catch (error) {
       console.error('[POC-Card-Closed] Failed to refresh card:', error);
     }
@@ -413,7 +413,6 @@ export async function renderClosedPocCard(p) {
   // Listen for ER toggle event
   card.addEventListener('toggle-ers', async (e) => {
     const showERs = e.detail?.showERs ?? true;
-    console.log('[POC-Card-Closed] toggle-ers event received:', showERs);
 
     // Re-render details with toggle state
     const detailsContainer = card.querySelector('.poc-details');

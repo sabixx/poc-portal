@@ -1,9 +1,20 @@
 // dashboard.js - Dashboard metrics display with view categories
-// VERSION 3.2 - Receives base-filtered POCs for accurate category counts
+// VERSION 4.0 - Lucide icons, compact cards, enhanced UX
 import { computeDashboardMetrics, categorizePoc } from "./poc_status.js";
 import { toggleStatusFilter, isStatusFiltered, refreshFilterSummary, setViewCategory, getViewCategory } from "./filters.js";
 
-console.log("[Dashboard] VERSION 3.2 - Accurate category counts from base-filtered POCs");
+console.log("[Dashboard] VERSION 4.0 - Lucide icons + enhanced UX");
+
+/** Map status IDs to Lucide icon names */
+const STATUS_ICONS = {
+  'on_track': 'circle-check-big',
+  'at_risk': 'triangle-alert',
+  'at_risk_prep': 'target',
+  'at_risk_stalled': 'circle-pause',
+  'overdue': 'circle-x',
+  'this_month': 'calendar',
+  'next_month': 'calendar-days'
+};
 
 /**
  * Render the dashboard with all metrics
@@ -17,32 +28,24 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
   if (!container) return;
 
   const pocs = baseFilteredPocs || [];
-  
-  // Count POCs by category - iterate through all base-filtered POCs
+
+  // Count POCs by category
   let activeCount = 0;
   let inReviewCount = 0;
   let completedCount = 0;
-  
+
   pocs.forEach(p => {
     const pocUcs = pocUseCasesMap.get(p.id) || [];
     const categorized = categorizePoc(p, pocUcs, asOfDate);
-    
+
     if (categorized.isActive) activeCount++;
     else if (categorized.isInReview) inReviewCount++;
     else if (categorized.isCompleted) completedCount++;
   });
-  
-  console.log("[Dashboard] Category counts:", {
-    total: pocs.length,
-    active: activeCount,
-    inReview: inReviewCount,
-    completed: completedCount,
-    sum: activeCount + inReviewCount + completedCount
-  });
-  
+
   // Get metrics for status cards (only shown in active view)
   const metrics = computeDashboardMetrics(pocs, pocUseCasesMap, asOfDate);
-  
+
   const currentView = getViewCategory();
 
   container.innerHTML = `
@@ -50,17 +53,17 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
       <!-- Top-level View Categories -->
       <div class="dashboard-view-tabs">
         <button type="button" class="view-tab ${currentView === 'active' ? 'active' : ''}" data-view="active">
-          <span class="view-tab-icon">📊</span>
+          <span class="view-tab-icon"><i data-lucide="bar-chart-3"></i></span>
           <span class="view-tab-label">Active</span>
           <span class="view-tab-count">${activeCount}</span>
         </button>
         <button type="button" class="view-tab ${currentView === 'in_review' ? 'active' : ''}" data-view="in_review">
-          <span class="view-tab-icon">📋</span>
+          <span class="view-tab-icon"><i data-lucide="clipboard-list"></i></span>
           <span class="view-tab-label">In Review</span>
           <span class="view-tab-count">${inReviewCount}</span>
         </button>
         <button type="button" class="view-tab ${currentView === 'completed' ? 'active' : ''}" data-view="completed">
-          <span class="view-tab-icon">✓</span>
+          <span class="view-tab-icon"><i data-lucide="circle-check"></i></span>
           <span class="view-tab-label">Completed</span>
           <span class="view-tab-count">${completedCount}</span>
         </button>
@@ -73,7 +76,6 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
             id: "on_track",
             label: "On Track",
             count: metrics.onTrack.length,
-            icon: "✅",
             color: "success",
             isActive: isStatusFiltered("on_track")
           })}
@@ -81,15 +83,13 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
             id: "at_risk",
             label: "At Risk",
             count: metrics.atRisk.length,
-            icon: "⚠️",
             color: "warning",
             isActive: isStatusFiltered("at_risk")
           })}
           ${renderMetricCard({
             id: "at_risk_prep",
-            label: "At Risk (Customer Preperation)",
+            label: "At Risk (Customer Preparation)",
             count: metrics.atRiskPrep.length,
-            icon: "🎯",
             color: "orange",
             isActive: isStatusFiltered("at_risk_prep")
           })}
@@ -97,7 +97,6 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
             id: "at_risk_stalled",
             label: "At Risk (Stalled)",
             count: metrics.atRiskStalled.length,
-            icon: "⏸️",
             color: "orange",
             isActive: isStatusFiltered("at_risk_stalled")
           })}
@@ -105,7 +104,6 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
             id: "overdue",
             label: "Overdue",
             count: metrics.overdue.length,
-            icon: "🔴",
             color: "danger",
             isActive: isStatusFiltered("overdue")
           })}
@@ -132,46 +130,58 @@ export function renderDashboard(baseFilteredPocs, allPocs, pocUseCasesMap, asOfD
 
   // Attach click handlers
   attachDashboardListeners(container);
+
+  // Initialize Lucide icons in the newly rendered HTML
+  if (window.lucide) {
+    lucide.createIcons();
+  }
 }
 
 /**
- * Render a primary metric card
+ * Render a primary metric card with Lucide icon
  */
-function renderMetricCard({ id, label, count, icon, color, isActive }) {
+function renderMetricCard({ id, label, count, color, isActive }) {
   const colorClass = `dashboard-card-${color}`;
   const activeClass = isActive ? "dashboard-card-active" : "";
-  
+  const iconName = STATUS_ICONS[id] || 'circle-help';
+
   return `
-    <div class="dashboard-card dashboard-card-primary ${colorClass} ${activeClass}" 
-         data-status="${id}" 
+    <div class="dashboard-card dashboard-card-primary ${colorClass} ${activeClass}"
+         data-status="${id}"
          data-count="${count}"
          title="Click to filter POCs by ${label}">
-      <div class="dashboard-card-icon">${icon}</div>
+      <div class="dashboard-card-icon">
+        <i data-lucide="${iconName}"></i>
+      </div>
       <div class="dashboard-card-content">
         <div class="dashboard-card-count">${count}</div>
         <div class="dashboard-card-label">${label}</div>
       </div>
-      ${count > 0 ? `<div class="dashboard-card-filter-icon">${isActive ? '✓' : '⧉'}</div>` : ''}
+      ${count > 0 ? `<div class="dashboard-card-filter-icon"><i data-lucide="${isActive ? 'check' : 'filter'}"></i></div>` : ''}
     </div>
   `;
 }
 
 /**
- * Render a secondary (smaller) metric card
+ * Render a secondary (smaller) metric card with Lucide icon
  */
 function renderMetricCardSmall({ id, label, count, isActive }) {
   const activeClass = isActive ? "dashboard-card-active" : "";
-  
+  const iconName = STATUS_ICONS[id] || 'calendar';
+
   return `
-    <div class="dashboard-card dashboard-card-secondary ${activeClass}" 
-         data-status="${id}" 
+    <div class="dashboard-card dashboard-card-secondary ${activeClass}"
+         data-status="${id}"
          data-count="${count}"
          title="Click to filter POCs by ${label}">
+      <div class="dashboard-card-icon-small">
+        <i data-lucide="${iconName}"></i>
+      </div>
       <div class="dashboard-card-content">
         <div class="dashboard-card-count-small">${count}</div>
         <div class="dashboard-card-label-small">${label}</div>
       </div>
-      ${count > 0 ? `<div class="dashboard-card-filter-icon-small">${isActive ? '✓' : '⧉'}</div>` : ''}
+      ${count > 0 ? `<div class="dashboard-card-filter-icon-small"><i data-lucide="${isActive ? 'check' : 'filter'}"></i></div>` : ''}
     </div>
   `;
 }
@@ -194,23 +204,20 @@ function attachDashboardListeners(container) {
   cards.forEach(card => {
     const status = card.dataset.status;
     const count = parseInt(card.dataset.count) || 0;
-    
+
     if (count === 0) {
-      card.style.cursor = "default";
-      card.style.opacity = "0.6";
-      return;
+      return; // Zero-count styling handled via CSS [data-count="0"]
     }
 
-    card.style.cursor = "pointer";
     card.addEventListener("click", () => {
       toggleStatusFilter(status);
-      
+
       if (isStatusFiltered(status)) {
         card.classList.add("dashboard-card-active");
       } else {
         card.classList.remove("dashboard-card-active");
       }
-      
+
       refreshFilterSummary();
     });
   });

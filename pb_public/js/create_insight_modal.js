@@ -33,7 +33,7 @@ export function showCreateInsightModal({
   modal.innerHTML = `
     <div class="insight-modal-content">
       <div class="insight-modal-header">
-        <h3>📝 Create ProductBoard Insight</h3>
+        <h3><i data-lucide="file-text" style="width:18px;height:18px;display:inline-block;vertical-align:middle;"></i> Create ProductBoard Insight</h3>
         <h3>just a dummy placeholder. useless without real Pb access</h3>
         <button type="button" class="insight-modal-close">&times;</button>
       </div>
@@ -98,11 +98,14 @@ export function showCreateInsightModal({
       <div class="insight-modal-footer">
         <button type="button" class="insight-btn insight-btn-cancel">Cancel</button>
         <button type="button" class="insight-btn insight-btn-create">
-          <span class="insight-btn-icon">📤</span> Create Insight
+          <span class="insight-btn-icon"><i data-lucide="upload" style="width:14px;height:14px;"></i></span> Create Insight
         </button>
       </div>
     </div>
   `;
+
+  // Render Lucide icons in the modal
+  if (window.lucide) lucide.createIcons();
 
   document.body.appendChild(modal);
   currentModal = modal;
@@ -124,7 +127,7 @@ export function showCreateInsightModal({
   // Update preview on input
   function updatePreview() {
     previewTitle.textContent = titleInput.value || '(No title)';
-    previewCompany.textContent = `🏢 ${customerInput.value || '(No company)'}`;
+    previewCompany.textContent = `${customerInput.value || '(No company)'}`;
     
     const feedback = feedbackInput.value;
     const notes = notesInput.value;
@@ -169,7 +172,8 @@ export function showCreateInsightModal({
     }
 
     createBtn.disabled = true;
-    createBtn.innerHTML = '<span class="insight-btn-icon">⏳</span> Creating...';
+    createBtn.innerHTML = '<span class="insight-btn-icon"><i data-lucide="loader" class="spin" style="width:14px;height:14px;"></i></span> Creating...';
+    if (window.lucide) lucide.createIcons();
 
     try {
       // TODO: Actually create the insight in ProductBoard via API
@@ -179,13 +183,14 @@ export function showCreateInsightModal({
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      alert('✅ Insight created successfully!\n\n(This is a placeholder - ProductBoard API integration pending)');
+      alert('Insight created successfully!\n\n(This is a placeholder - ProductBoard API integration pending)');
       closeModal();
     } catch (error) {
       console.error('[Insight] Failed to create:', error);
       alert('Failed to create insight. Please try again.');
       createBtn.disabled = false;
-      createBtn.innerHTML = '<span class="insight-btn-icon">📤</span> Create Insight';
+      createBtn.innerHTML = '<span class="insight-btn-icon"><i data-lucide="upload" style="width:14px;height:14px;"></i></span> Create Insight';
+      if (window.lucide) lucide.createIcons();
     }
   });
 

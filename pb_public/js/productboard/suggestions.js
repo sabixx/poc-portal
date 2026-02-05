@@ -155,7 +155,7 @@ function renderFeatureItem(feature, options = {}) {
         <div class="pb-feature-meta">
           <span class="pb-badge pb-status-${normalizeStatus(featureStatus)}">${featureStatus}</span>
           <span class="pb-product-tag">${featureProduct || '(no product)'}</span>
-          ${showLinkCount ? `<span class="pb-link-count">🔗 ${linkCount} link${linkCount !== 1 ? 's' : ''}</span>` : ''}
+          ${showLinkCount ? `<span class="pb-link-count"><i data-lucide="link" style="width:12px;height:12px;display:inline-block;vertical-align:middle;"></i> ${linkCount} link${linkCount !== 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
       <button 
