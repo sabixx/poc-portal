@@ -8,8 +8,8 @@ import {
   buildVisibleSEs,
   renderSeFilters,
 } from "./overview.js";
-import { setupPocDetail } from "./poc_detail.js";
-import { setupUcDetail } from "./uc_detail.js";
+import { setupPocDetail, refreshPocDetailIfVisible } from "./poc_detail.js";
+import { setupUcDetail, refreshUcDetailIfVisible } from "./uc_detail.js";
 import { renderUseCaseStats } from "./overview_stats.js";
 import { initLoadingOverlay, showLoading, hideLoading } from "./loading.js";
 import { showSettingsModal } from "./settings.js";
@@ -39,6 +39,22 @@ const userInfo = document.getElementById("user-info");
 const roleHint = document.getElementById("role-hint");
 
 /**
+ * PocketBase realtime subscriptions — auto-refresh on data changes
+ * Must be called after authentication so SSE connection has valid auth token
+ */
+let realtimeDebounce = null;
+function setupRealtimeSubscriptions(pb) {
+  const debouncedRefresh = () => {
+    clearTimeout(realtimeDebounce);
+    realtimeDebounce = setTimeout(() => window.refreshPocList(false), 500);
+  };
+  ['pocs', 'poc_use_cases', 'comments', 'poc_feature_requests'].forEach(col => {
+    pb.collection(col).subscribe('*', debouncedRefresh);
+  });
+  console.log("[POC-PORTAL] Realtime subscriptions active");
+}
+
+/**
  * Load all data and initialize the portal after authentication
  */
 async function initializePortal(pb, user) {
@@ -55,6 +71,7 @@ async function initializePortal(pb, user) {
   document.getElementById("settings-btn")?.classList.remove("hidden");
   document.getElementById("header-nav")?.classList.remove("hidden");
   document.getElementById("create-poc-btn")?.classList.remove("hidden");
+  document.getElementById("refresh-btn")?.classList.remove("hidden");
 
   // Update loading message
   showLoading("Loading data...", "Fetching POCs and users");
@@ -134,6 +151,9 @@ async function initializePortal(pb, user) {
     // If URL has a specific view, apply it
     setViewCategory(initialRoute.params.view, true);
   }
+
+  // Setup realtime subscriptions after authentication
+  setupRealtimeSubscriptions(pb);
 }
 
 /**
@@ -242,6 +262,11 @@ function handleLogout() {
   console.log("[POC-PORTAL] Logging out...");
 
   try {
+    appState.pb.realtime.disconnect();
+  } catch (e) {
+    console.warn("[POC-PORTAL] Error disconnecting realtime:", e);
+  }
+  try {
     appState.pb.authStore.clear();
   } catch (e) {
     console.warn("[POC-PORTAL] Error clearing auth store:", e);
@@ -257,6 +282,7 @@ function handleLogout() {
   document.getElementById("settings-btn")?.classList.add("hidden");
   document.getElementById("header-nav")?.classList.add("hidden");
   document.getElementById("create-poc-btn")?.classList.add("hidden");
+  document.getElementById("refresh-btn")?.classList.add("hidden");
   portalSection.classList.add("hidden");
   document.getElementById("exec-dashboard-section")?.classList.add("hidden");
   document.getElementById("poc-detail-section")?.classList.add("hidden");
@@ -345,9 +371,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     createPocBtn.addEventListener("click", () => showCreatePocModal());
   }
 
-  // Global refresh function for use after POC creation
-  window.refreshPocList = async function() {
-    showLoading("Refreshing...", "Fetching updated data");
+  // Global refresh function — non-blocking (no loading overlay)
+  let isRefreshing = false;
+  window.refreshPocList = async function(showSpinner = true) {
+    if (isRefreshing) {
+      console.log("[POC-PORTAL] Refresh already in progress, skipping");
+      return;
+    }
+    isRefreshing = true;
+    console.log("[POC-PORTAL] Refreshing data...", showSpinner ? "(manual)" : "(auto)");
+
+    const refreshBtn = document.getElementById("refresh-btn");
+    if (showSpinner && refreshBtn) refreshBtn.classList.add("spinning");
 
     try {
       const { users, pocs, puc, roleText } = await fetchAllData(pb, appState.currentUser);
@@ -355,19 +390,60 @@ document.addEventListener("DOMContentLoaded", async () => {
       appState.allPocs = pocs;
       appState.allPuc = puc;
 
+      // Also refresh comments and feature requests
+      const [allComments, allFeatureRequests] = await Promise.all([
+        fetchAllComments(pb),
+        fetchAllFeatureRequests(pb, pocs)
+      ]);
+      appState.allComments = allComments;
+      appState.allFeatureRequests = allFeatureRequests;
+
+      // Re-index comments by POC and use case
+      appState.commentsByPoc.clear();
+      appState.commentsByPuc.clear();
+      allComments.forEach(c => {
+        if (c.poc) {
+          if (!appState.commentsByPoc.has(c.poc)) appState.commentsByPoc.set(c.poc, []);
+          appState.commentsByPoc.get(c.poc).push(c);
+        }
+        if (c.poc_use_case) {
+          const pucIds = Array.isArray(c.poc_use_case) ? c.poc_use_case : [c.poc_use_case];
+          pucIds.forEach(pucId => {
+            if (!appState.commentsByPuc.has(pucId)) appState.commentsByPuc.set(pucId, []);
+            appState.commentsByPuc.get(pucId).push(c);
+          });
+        }
+      });
+
+      // Re-index feature requests by POC
+      appState.featureRequestsByPoc.clear();
+      allFeatureRequests.forEach(fr => {
+        if (fr.poc) {
+          if (!appState.featureRequestsByPoc.has(fr.poc)) appState.featureRequestsByPoc.set(fr.poc, []);
+          appState.featureRequestsByPoc.get(fr.poc).push(fr);
+        }
+      });
+
       // Re-render the view
       const visibleSEs = buildVisibleSEs();
       await renderSeFilters(visibleSEs);
       await renderMainView();
-
-      hideLoading(true);
+      refreshPocDetailIfVisible();
+      refreshUcDetailIfVisible();
+      console.log("[POC-PORTAL] Refresh complete");
     } catch (err) {
       console.error("[POC-PORTAL] Failed to refresh:", err);
-      hideLoading(true);
-      // Fallback: reload page
-      window.location.reload();
+    } finally {
+      isRefreshing = false;
+      if (refreshBtn) refreshBtn.classList.remove("spinning");
     }
   };
+
+  // Setup refresh button
+  const refreshBtn = document.getElementById("refresh-btn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => window.refreshPocList(true));
+  }
 
   // Check for existing session
   if (pb.authStore.isValid) {

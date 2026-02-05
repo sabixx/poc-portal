@@ -16,6 +16,8 @@ const ucDetailTableBody = document.querySelector(
   "#usecase-detail-table tbody"
 );
 
+let currentUcId = null;
+
 export function setupUcDetail() {
   if (ucDetailBack) {
     ucDetailBack.addEventListener("click", () => {
@@ -42,6 +44,8 @@ function switchView(view) {
 
 export function showUseCaseDetail(uc) {
   if (!usecaseDetailSection) return;
+
+  currentUcId = uc.id;
 
   const titleText = `${uc.code} v${uc.version || 1} – ${uc.title || ""}`;
   if (ucDetailTitle) ucDetailTitle.textContent = titleText;
@@ -87,4 +91,42 @@ export function showUseCaseDetail(uc) {
 
   // Update URL to reflect use case detail view
   navigateToUseCaseDetail(uc.id);
+}
+
+export function refreshUcDetailIfVisible() {
+  if (!usecaseDetailSection || usecaseDetailSection.classList.contains("hidden") || !currentUcId) return;
+  const puc = appState.allPuc.find(p => p.expand?.use_case?.id === currentUcId);
+  if (!puc?.expand?.use_case) return;
+
+  const uc = puc.expand.use_case;
+
+  // Update content without touching navigation or view switching
+  const titleText = `${uc.code} v${uc.version || 1} – ${uc.title || ""}`;
+  if (ucDetailTitle) ucDetailTitle.textContent = titleText;
+  const breadcrumbName = document.getElementById("uc-breadcrumb-name");
+  if (breadcrumbName) breadcrumbName.textContent = uc.code || "Use Case";
+
+  if (!ucDetailTableBody) return;
+  ucDetailTableBody.innerHTML = "";
+
+  const relevantPuc = appState.allPuc.filter(
+    (p) => p.expand?.use_case?.id === uc.id
+  );
+  relevantPuc.forEach((p) => {
+    const poc = p.expand?.poc;
+    if (!poc) return;
+    const se = poc.expand?.se;
+    const tr = document.createElement("tr");
+    const rating = p.rating != null ? p.rating : "";
+    tr.innerHTML = `
+      <td>${poc.name}</td>
+      <td>${se ? userDisplayLabel(se) : "Unknown SE"}</td>
+      <td>${uc.version || 1}</td>
+      <td>${mapStateToLabel(p)}</td>
+      <td>${rating}</td>
+      <td>${p.completed_at || ""}</td>
+      <td></td>
+    `;
+    ucDetailTableBody.appendChild(tr);
+  });
 }

@@ -81,54 +81,15 @@ export async function fetchAllComments(pb) {
  * @param {Array} pocs - Array of POC objects (optional, will fetch for all if provided)
  */
 export async function fetchAllFeatureRequests(pb, pocs = []) {
-  // Test collection access
   try {
-    await pb.collection("poc_feature_requests").getList(1, 1, {
+    return await pb.collection("poc_feature_requests").getFullList({
+      expand: "feature_request,use_case",
       $autoCancel: false
     });
-  } catch (testError) {
-    console.error("[POC-PORTAL] Feature requests collection access failed:", testError.message);
+  } catch (err) {
+    console.error("[POC-PORTAL] Feature requests fetch failed:", err.message);
     return [];
   }
-
-  // Fetch per-POC sequentially
-  if (pocs && pocs.length > 0) {
-    const allRecords = [];
-    let failCount = 0;
-
-    for (const poc of pocs) {
-      try {
-        const result = await pb.collection("poc_feature_requests").getList(1, 100, {
-          filter: `poc = "${poc.id}"`,
-          $autoCancel: false
-        });
-
-        if (result.items.length > 0) {
-          for (const fr of result.items) {
-            try {
-              const expanded = await pb.collection("poc_feature_requests").getOne(fr.id, {
-                expand: "feature_request,use_case",
-                $autoCancel: false
-              });
-              allRecords.push(expanded);
-            } catch (expErr) {
-              allRecords.push(fr);
-            }
-          }
-        }
-      } catch (error) {
-        failCount++;
-      }
-    }
-
-    if (failCount > 0) {
-      console.warn("[POC-PORTAL] Feature request fetch: " + failCount + " POC(s) failed");
-    }
-
-    return allRecords;
-  }
-
-  return [];
 }
 
 // productboard/api.js

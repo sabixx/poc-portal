@@ -128,6 +128,17 @@ async function renderPocCards(filteredPocs, asOfDate) {
     return;
   }
 
+  // Capture which POC cards have their details expanded before re-rendering
+  const expandedPocIds = new Set();
+  if (pocsContainer) {
+    pocsContainer.querySelectorAll('.poc-card[data-poc-id]').forEach(card => {
+      const details = card.querySelector('.poc-details');
+      if (details && !details.classList.contains('hidden')) {
+        expandedPocIds.add(card.dataset.pocId);
+      }
+    });
+  }
+
   if (pocsContainer) {
     pocsContainer.innerHTML = "";
   } else {
@@ -154,7 +165,22 @@ async function renderPocCards(filteredPocs, asOfDate) {
   }
   
   await renderPocGroupList(groups, pocsContainer, cardRenderer);
-  
+
+  // Restore expansion state for cards that were previously expanded
+  if (expandedPocIds.size > 0) {
+    expandedPocIds.forEach(pocId => {
+      const card = pocsContainer.querySelector(`.poc-card[data-poc-id="${pocId}"]`);
+      if (!card) return;
+      const details = card.querySelector('.poc-details');
+      const toggleBtn = card.querySelector('.poc-toggle-details-btn');
+      if (details) details.classList.remove('hidden');
+      if (toggleBtn) {
+        const erCount = parseInt(toggleBtn.dataset.erCount) || 0;
+        toggleBtn.textContent = erCount > 0 ? "Hide Use Cases & Requests" : "Hide Use Case Details";
+      }
+    });
+  }
+
   // Show empty state if no POCs
   if (filteredPocs.length === 0) {
     pocsContainer.innerHTML = `

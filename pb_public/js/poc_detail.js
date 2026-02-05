@@ -19,6 +19,7 @@ const pucStateFilter = document.getElementById("puc-state-filter"); // all | ope
 // const pocOutcomeFilter = document.getElementById("poc-outcome-filter"); // all | won | lost (TO BE WIRED)
 
 let currentPoc = null;
+let currentPocId = null;
 
 export function setupPocDetail() {
   if (pocDetailBack) {
@@ -68,6 +69,7 @@ export function showPocDetail(poc) {
   if (!pocDetailSection) return;
 
   currentPoc = poc;
+  currentPocId = poc.id;
 
   const seLabel =
     "SE: " +
@@ -100,14 +102,37 @@ export function showPocDetail(poc) {
   navigateToPocDetail(poc.id);
 }
 
+export function refreshPocDetailIfVisible() {
+  if (!pocDetailSection || pocDetailSection.classList.contains("hidden") || !currentPocId) return;
+  const freshPoc = appState.allPocs.find(p => p.id === currentPocId);
+  if (!freshPoc) return;
+
+  // Update data without touching navigation or view switching
+  currentPoc = freshPoc;
+
+  const seLabel = "SE: " + (freshPoc.expand?.se?.email || freshPoc.expand?.se?.username || "Unknown SE");
+  if (pocDetailTitle) pocDetailTitle.textContent = freshPoc.name;
+  const breadcrumbName = document.getElementById("poc-breadcrumb-name");
+  if (breadcrumbName) breadcrumbName.textContent = freshPoc.name || "POC Detail";
+  if (pocDetailMeta) {
+    pocDetailMeta.textContent = `Customer: ${freshPoc.customer_name || "–"} · Partner: ${freshPoc.partner || "–"} · ${seLabel} · Prep: ${formatDate(freshPoc.prep_start_date)} · POC: ${formatDate(freshPoc.poc_start_date)} → ${formatDate(freshPoc.poc_end_date_plan)}`;
+  }
+  renderPucTable(freshPoc);
+}
+
 function renderPucTable(poc) {
   if (!pocDetailTableBody) return;
 
   pocDetailTableBody.innerHTML = "";
 
   const allPucForPoc = getPucForPoc(poc.id, appState.allPuc).sort((a, b) => {
-    const ucA = a.expand && a.expand.use_case;
-    const ucB = b.expand && b.expand.use_case;
+    const orderA = a.order || 0;
+    const orderB = b.order || 0;
+    if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+    if (orderA > 0 && orderB <= 0) return -1;
+    if (orderB > 0 && orderA <= 0) return 1;
+    const ucA = a.expand?.use_case;
+    const ucB = b.expand?.use_case;
     return (ucA?.code || "").localeCompare(ucB?.code || "");
   });
 

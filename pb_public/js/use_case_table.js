@@ -154,14 +154,19 @@ export function renderActiveUseCaseTable(pocUcs, pocId, featureRequests = [], cu
   const prepRows = rows.filter((r) => r.isPrep);
   const otherRows = rows.filter((r) => !r.isPrep);
 
-  const sortByTitle = (a, b) => {
+  const sortByOrder = (a, b) => {
+    const orderA = a.puc.order || 0;
+    const orderB = b.puc.order || 0;
+    if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+    if (orderA > 0 && orderB <= 0) return -1;
+    if (orderB > 0 && orderA <= 0) return 1;
     const ta = (a.uc.title || a.uc.code || "").toLowerCase();
     const tb = (b.uc.title || b.uc.code || "").toLowerCase();
     return ta.localeCompare(tb);
   };
 
-  prepRows.sort(sortByTitle);
-  otherRows.sort(sortByTitle);
+  prepRows.sort(sortByOrder);
+  otherRows.sort(sortByOrder);
 
   const renderRow = ({ puc, uc, isPrep, isFirstNonPrep, ers, feedback }) => {
     const completed = !!puc.is_completed;
@@ -464,14 +469,19 @@ export function renderClosedUseCaseTable(pocUcs) {
   const prepRows = rows.filter((r) => r.isPrep);
   const otherRows = rows.filter((r) => !r.isPrep);
 
-  const sortByTitle = (a, b) => {
+  const sortByOrder = (a, b) => {
+    const orderA = a.puc.order || 0;
+    const orderB = b.puc.order || 0;
+    if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+    if (orderA > 0 && orderB <= 0) return -1;
+    if (orderB > 0 && orderA <= 0) return 1;
     const ta = (a.uc.title || a.uc.code || "").toLowerCase();
     const tb = (b.uc.title || b.uc.code || "").toLowerCase();
     return ta.localeCompare(tb);
   };
 
-  prepRows.sort(sortByTitle);
-  otherRows.sort(sortByTitle);
+  prepRows.sort(sortByOrder);
+  otherRows.sort(sortByOrder);
 
   const renderRow = ({ puc, uc, isPrep }) => {
     const completed = !!puc.is_completed;
