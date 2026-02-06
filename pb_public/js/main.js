@@ -466,24 +466,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (!loginForm) return;
 
-  // Mobile debug helper
-  const mobileDebug = document.getElementById("mobile-debug");
-  const debugLog = (msg) => {
-    if (mobileDebug) {
-      mobileDebug.style.display = "block";
-      mobileDebug.textContent += msg + "\n";
-    }
-    console.log(msg);
-  };
-
   loginForm.addEventListener("submit", async (evt) => {
   evt.preventDefault();
   loginError.textContent = "";
-  debugLog("[LOGIN] Form submitted");
 
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
-  debugLog("[LOGIN] Email: " + email);
 
   try {
     if (isSignupMode) {
@@ -528,15 +516,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       
     } else {
       showLoading("Signing in...", "Authenticating");
-      debugLog("[LOGIN] Calling loginUser...");
+      console.log("[POC-PORTAL] Logging in as", email);
       const user = await loginUser(pb, email, password);
-      debugLog("[LOGIN] Login success, user: " + user?.email);
       await initializePortal(pb, user);
-      debugLog("[LOGIN] Portal initialized");
     }
 
   } catch (err) {
-    debugLog("[LOGIN] ERROR: " + (err.message || err));
     console.error("[POC-PORTAL] Auth failed:", err);
 
     if (err.data?.data?.email?.message) {
