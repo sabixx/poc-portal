@@ -139,9 +139,7 @@ async function renderPocCards(filteredPocs, asOfDate) {
     });
   }
 
-  if (pocsContainer) {
-    pocsContainer.innerHTML = "";
-  } else {
+  if (!pocsContainer) {
     console.warn("[POC-PORTAL] pocs-container not found");
     return;
   }
@@ -163,8 +161,28 @@ async function renderPocCards(filteredPocs, asOfDate) {
       cardRenderer = renderClosedPocCard;
       break;
   }
-  
-  await renderPocGroupList(groups, pocsContainer, cardRenderer);
+
+  // Build new content off-screen to avoid flicker
+  const fragment = document.createDocumentFragment();
+  await renderPocGroupList(groups, fragment, cardRenderer);
+
+  // Show empty state if no POCs
+  if (filteredPocs.length === 0) {
+    const emptyDiv = document.createElement("div");
+    emptyDiv.className = "empty-state";
+    emptyDiv.innerHTML = `
+      <div class="empty-state-icon"><i data-lucide="inbox" style="width:48px;height:48px;"></i></div>
+      <div class="empty-state-text">No POCs found</div>
+      <div class="empty-state-hint">Try adjusting your filters or view category</div>
+    `;
+    fragment.appendChild(emptyDiv);
+  }
+
+  // Atomic swap — old content replaced in one operation, no flicker
+  pocsContainer.replaceChildren(fragment);
+
+  // Render Lucide icons now that cards are in the DOM
+  if (window.lucide) lucide.createIcons();
 
   // Restore expansion state for cards that were previously expanded
   if (expandedPocIds.size > 0) {
@@ -181,17 +199,6 @@ async function renderPocCards(filteredPocs, asOfDate) {
     });
   }
 
-  // Show empty state if no POCs
-  if (filteredPocs.length === 0) {
-    pocsContainer.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon"><i data-lucide="inbox" style="width:48px;height:48px;"></i></div>
-        <div class="empty-state-text">No POCs found</div>
-        <div class="empty-state-hint">Try adjusting your filters or view category</div>
-      </div>
-    `;
-    if (window.lucide) lucide.createIcons();
-  }
 }
 
 async function renderPocGroupList(groups, container, cardRenderer) {
