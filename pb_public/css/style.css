@@ -19,6 +19,7 @@
   --danger: #dc2626;
   --danger-soft: #fee2e2;
   --warning: #f59e0b;
+  --warning-soft: #fef3c7;
   --success: #16a34a;
   --success-soft: #dcfce7;
 
@@ -52,6 +53,7 @@
   --danger-soft: #7f1d1d;
 
   --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.15);
   --success: #4ade80;
   --success-soft: #022c22;
 
@@ -656,8 +658,8 @@ input:focus {
 }
 
 .prep-warning {
-  background: #fef3c7;
-  color: #ca8a04;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .prep-danger {
