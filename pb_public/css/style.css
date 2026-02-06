@@ -5647,6 +5647,7 @@ input:focus {
 #login-section form input[type="text"] {
   width: 100%;
   padding: 0.5rem 0.75rem;
+  box-sizing: border-box;
 }
 
 #login-section form button[type="submit"] {

@@ -56,7 +56,7 @@
     <!-- Login/Signup -->
     <section id="login-section">
       <h2 id="auth-title">Login</h2>
-      <form id="login-form">
+      <form id="login-form" action="javascript:void(0);" method="post">
         <label id="name-label" class="hidden">
           Name:
           <input type="text" id="login-name">
@@ -73,9 +73,10 @@
           Confirm Password:
           <input type="password" id="login-password-confirm">
         </label>
-        <button type="submit" id="auth-submit-btn">Sign in</button>
+        <button type="submit" id="auth-submit-btn" class="btn btn--primary">Sign in</button>
       </form>
       <div id="login-error" class="error"></div>
+      <div id="mobile-debug" style="margin-top:1rem;padding:0.5rem;background:#fee;color:#900;font-size:11px;max-height:100px;overflow:auto;display:none;white-space:pre-wrap;"></div>
       <div class="auth-toggle">
         <span id="auth-toggle-text">Don't have an account?</span>
         <button type="button" id="auth-toggle-btn" class="link-btn">Sign up</button>
@@ -199,7 +200,7 @@
   </main>
 
   <!-- Modules -->
-  <script type="module" src="js/theme.js?v=6"></script>
-  <script type="module" src="js/main.js?v=6"></script>
+  <script type="module" src="js/theme.js?v=8"></script>
+  <script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>
