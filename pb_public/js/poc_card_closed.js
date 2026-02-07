@@ -85,6 +85,7 @@ function labelCommercial(value) {
     case "now_customer": return "Won as Customer";
     case "lost": return "Lost";
     case "no_decision": return "No Decision Yet";
+    case "not_correct_qualified": return "Disqualified - Premature POC";
     case "other": return "Other";
     case "unknown":
     default: return "Unknown";
@@ -291,10 +292,11 @@ export async function renderClosedPocCard(p) {
               <option value="now_customer">Won as Customer</option>
               <option value="lost">Lost</option>
               <option value="no_decision">No Decision Yet</option>
+              <option value="not_correct_qualified">Disqualified - Premature POC</option>
               <option value="other">Other</option>
             </select>
           </label>
-          
+
           <label class="poc-outcome-field">
             <span class="poc-field-label">Technical Result</span>
             <select class="poc-outcome-tech">

@@ -392,7 +392,7 @@ def setup_pocs():
       - completion_date_auto (date)
       - risk_status (select: on_track, at_risk, overdue)
       - technical_result (select: unknown, win, loss, other)
-      - commercial_result (select: unknown, now_customer, lost, no_decision, other)
+      - commercial_result (select: unknown, now_customer, lost, no_decision, not_correct_qualified, other)
       - se_comment (text)
       - aeb (text)
       - deregistered_at
@@ -421,7 +421,7 @@ def setup_pocs():
         date_field("completion_date_auto", required=False),
         select_field("risk_status", ["on_track", "at_risk", "overdue"], required=False),
         select_field("technical_result", ["unknown", "win", "loss", "other"], required=False),
-        select_field("commercial_result", ["unknown", "now_customer", "lost", "no_decision", "other"], required=False),
+        select_field("commercial_result", ["unknown", "now_customer", "lost", "no_decision", "not_correct_qualified", "other"], required=False),
         text_field("se_comment", required=False, unique=False),
         text_field("aeb", required=False, unique=False),
         date_field("deregistered_at", required=False),

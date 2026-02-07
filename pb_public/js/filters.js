@@ -833,10 +833,7 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
       filterState.selectedSEs.delete("__none__");
       
       if (checkbox.checked) {
-        // If previously "all" (empty set), start tracking individual selections
-        if (filterState.selectedSEs.size === 0) {
-          ses.forEach(s => filterState.selectedSEs.add(s.id));
-        }
+        // Simply add the selected SE
         filterState.selectedSEs.add(checkbox.value);
       } else {
         // If unchecking from "all" state, first populate with all then remove
@@ -864,9 +861,7 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
       filterState.selectedRegions.delete("__none__");
       
       if (checkbox.checked) {
-        if (filterState.selectedRegions.size === 0) {
-          regions.forEach(r => filterState.selectedRegions.add(r));
-        }
+        // Simply add the selected region
         filterState.selectedRegions.add(checkbox.value);
       } else {
         if (filterState.selectedRegions.size === 0) {
@@ -892,9 +887,7 @@ function attachFilterListeners(container, ses, products, regions, currentUser) {
       filterState.selectedProducts.delete("__none__");
       
       if (checkbox.checked) {
-        if (filterState.selectedProducts.size === 0) {
-          products.forEach(p => filterState.selectedProducts.add(p));
-        }
+        // Simply add the selected product
         filterState.selectedProducts.add(checkbox.value);
       } else {
         if (filterState.selectedProducts.size === 0) {
